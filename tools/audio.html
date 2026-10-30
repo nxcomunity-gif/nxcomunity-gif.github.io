@@ -42,7 +42,7 @@
   <div class="kepala-tool">
     <span class="label">Audio</span>
     <h1>Audio Converter</h1>
-    <p>Siapin file audio <b>milik kamu</b> (lagu bikinan sendiri, rekaman, atau musik bebas royalti) biar siap di-upload ke Roblox: convert ke MP3, potong, atur volume, dan cek syarat upload. Semua diproses di HP/PC kamu, nggak di-upload ke mana-mana.</p>
+    <p>Siapin file audio <b>milik kamu</b> (lagu bikinan sendiri, rekaman, atau musik bebas royalti) biar siap di-upload ke Roblox: convert ke MP3, potong, atur volume & kecepatan, dan cek syarat upload. Semua diproses di HP/PC kamu, nggak di-upload ke mana-mana.</p>
   </div>
 
   <div class="panel">
@@ -73,6 +73,7 @@
       <div><label class="f" for="volume">Volume <span class="nilai" id="v-volume">0 dB</span></label><input id="volume" type="range" min="-12" max="12" step="0.5" value="0"></div>
       <div><label class="f" for="fadein">Fade in <span class="nilai" id="v-fadein">0 s</span></label><input id="fadein" type="range" min="0" max="5" step="0.1" value="0"></div>
       <div><label class="f" for="fadeout">Fade out <span class="nilai" id="v-fadeout">0 s</span></label><input id="fadeout" type="range" min="0" max="5" step="0.1" value="0"></div>
+      <div><label class="f" for="kecepatan">Kecepatan <span class="nilai" id="v-kecepatan">1.00x</span></label><input id="kecepatan" type="range" min="0.5" max="2" step="0.05" value="1"></div>
       <div><label class="f" for="normal">Normalisasi volume</label>
         <select class="f" id="normal"><option value="1" selected>Nyala (puncak -1 dB, nggak pecah)</option><option value="0">Mati</option></select></div>
     </div>
@@ -160,7 +161,8 @@
   function perbarui() {
     if (!buffer) return;
     ["volume", "fadein", "fadeout"].forEach(k => el("v-" + k).textContent = el(k).value + (k === "volume" ? " dB" : " s"));
-    const [a, b] = rentang(), dur = b - a;
+    el("v-kecepatan").textContent = Number(el("kecepatan").value).toFixed(2) + "x";
+    const [a, b] = rentang(), dur = (b - a) / Number(el("kecepatan").value);
     const kb = Number(el("bitrate").value), mb = dur * kb * 1000 / 8 / 1024 / 1024;
     el("i-durasi").textContent = fmtWaktu(buffer.duration);
     el("i-hasil").textContent = fmtWaktu(dur);
@@ -172,10 +174,11 @@
     gambar();
   }
 
-  // proses: potong + volume + normalisasi + fade -> array Float32 per channel
+  // proses: potong + kecepatan + volume + normalisasi + fade -> array Float32 per channel
   function olah() {
     const [a, b] = rentang(), sr = buffer.sampleRate;
-    const i0 = Math.floor(a * sr), n = Math.floor((b - a) * sr);
+    const i0 = Math.floor(a * sr);
+    let n = Math.floor((b - a) * sr);
     const kanal = Number(el("kanal").value);
     const src = [];
     for (let c = 0; c < buffer.numberOfChannels; c++) src.push(buffer.getChannelData(c).subarray(i0, i0 + n));
@@ -185,6 +188,20 @@
       if (kanal === 1 && src.length > 1) { for (let i = 0; i < n; i++) o[i] = (src[0][i] + src[1][i]) / 2; }
       else o.set(src[Math.min(c, src.length - 1)]);
       out.push(o);
+    }
+    // kecepatan: resample linear (nada ikut naik/turun, kayak sped up / slowed)
+    const cepat = Number(el("kecepatan").value);
+    if (cepat !== 1) {
+      const m = Math.max(1, Math.floor(n / cepat));
+      for (let c = 0; c < out.length; c++) {
+        const o = out[c], r = new Float32Array(m);
+        for (let i = 0; i < m; i++) {
+          const t = i * cepat, k = Math.floor(t), f = t - k;
+          r[i] = k + 1 < n ? o[k] * (1 - f) + o[k + 1] * f : o[Math.min(k, n - 1)];
+        }
+        out[c] = r;
+      }
+      n = m;
     }
     let gain = Math.pow(10, Number(el("volume").value) / 20);
     if (el("normal").value === "1") {
@@ -260,7 +277,7 @@
   ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("aktif"); }));
   ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("aktif"); }));
   drop.addEventListener("drop", e => muat(e.dataTransfer.files[0]));
-  ["mulai", "selesai", "bitrate", "kanal", "volume", "fadein", "fadeout", "normal"].forEach(k => el(k).addEventListener("input", perbarui));
+  ["mulai", "selesai", "bitrate", "kanal", "volume", "fadein", "fadeout", "kecepatan", "normal"].forEach(k => el(k).addEventListener("input", perbarui));
   el("convert").addEventListener("click", convert);
   el("putar").addEventListener("click", putar);
 </script>
