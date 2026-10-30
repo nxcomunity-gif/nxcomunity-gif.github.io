@@ -66,6 +66,13 @@
         </select>
       </div>
       <div>
+        <label class="f" for="bawah">Bagian bawah</label>
+        <select class="f" id="bawah">
+          <option value="asli" selected>Asli (sesuai gambar)</option>
+          <option value="cermin">Cermin langit (map melayang)</option>
+        </select>
+      </div>
+      <div>
         <label class="f" for="ukuran">Ukuran tiap sisi</label>
         <select class="f" id="ukuran">
           <option value="512">512 px</option>
@@ -99,7 +106,7 @@
 
     <div class="muka" id="muka"></div>
 
-    <p class="catatan"><b>Panorama 360°</b>: gambar dipakai penuh mengelilingi langit (cocok buat gambar 2:1 / prompt AI "equirectangular"). <b>Gambar biasa</b>: gambar dicerminkan biar ujung kiri-kanan nyambung, langit atas & bawah diisi warna tepi gambar. Rotasi Up/Dn cuma buat penyesuaian kalau masih ada yang kurang pas.</p>
+    <p class="catatan"><b>Panorama 360°</b>: gambar dipakai penuh mengelilingi langit (cocok buat gambar 2:1 / prompt AI "equirectangular"). <b>Gambar biasa</b>: gambar dicerminkan biar ujung kiri-kanan nyambung, tepi atas & bawah ditarik sampai nutup langit. <b>Cermin langit</b>: bagian bawah diisi pantulan langit, jadi map kelihatan melayang di atas awan. Rotasi Up/Dn cuma buat penyesuaian kalau masih ada yang kurang pas.</p>
   </div>
 
   <div class="panel cepat" style="margin-top: 18px">
@@ -165,14 +172,37 @@
   }]));
   const ROBLOX = { Bk: { putar: 0 }, Ft: { putar: 0 }, Lf: { putar: 0 }, Rt: { putar: 0 }, Up: { putar: 0 }, Dn: { putar: 0 } };
 
-  // rata-rata warna beberapa baris paling atas / bawah gambar (buat ngisi langit di mode gambar biasa)
-  function warnaTepi(atas) {
+  // rata-rata warna tiap baris gambar -> dipakai buat ngehalusin titik paling atas/bawah (biar nggak jadi pusaran)
+  function warnaBaris() {
     const { w, h, data } = sumber;
-    const n = Math.max(1, Math.round(h * 0.03)), c = [0, 0, 0];
-    for (let y = atas ? 0 : h - n; y < (atas ? n : h); y++)
-      for (let x = 0; x < w; x += 2) { const p = (y * w + x) * 4; c[0] += data[p]; c[1] += data[p + 1]; c[2] += data[p + 2]; }
-    const jml = n * Math.ceil(w / 2);
-    return c.map(v => v / jml);
+    const out = new Float32Array(h * 3);
+    for (let y = 0; y < h; y++) {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let x = 0; x < w; x += 2) { const p = (y * w + x) * 4; r += data[p]; g += data[p + 1]; b += data[p + 2]; n++; }
+      out[y * 3] = r / n; out[y * 3 + 1] = g / n; out[y * 3 + 2] = b / n;
+    }
+    // haluskan antar baris biar transisinya lembut
+    const hal = new Float32Array(h * 3), rad = Math.max(1, Math.round(h * 0.02));
+    for (let y = 0; y < h; y++) for (let c = 0; c < 3; c++) {
+      let s = 0, n = 0;
+      for (let k = -rad; k <= rad; k++) { const yy = Math.min(Math.max(y + k, 0), h - 1); s += out[yy * 3 + c]; n++; }
+      hal[y * 3 + c] = s / n;
+    }
+    return hal;
+  }
+
+  // gambar biasa: baris gambar "ditarik" sampai nutup ujung atas & bawah langit
+  function barisTarik(lat, band, tarik) {
+    const hb = band / 2, HALF = Math.PI / 2;
+    if (tarik <= 0 || hb >= HALF - 0.001) return Math.min(Math.max(0.5 - lat / band, 0), 1);
+    const a0 = hb * (1 - tarik), al = Math.abs(lat);
+    let s = al / hb;
+    if (al > a0) {
+      const k = (HALF - a0) / (hb - a0);
+      const u = Math.min(Math.max((al - a0) / (HALF - a0), 0), 1);
+      s = (1 - tarik) + tarik * (1 - Math.pow(1 - u, k));
+    }
+    return 0.5 - Math.sign(lat) * s * 0.5;
   }
   function modeDipakai() {
     const m = el("mode").value;
@@ -214,7 +244,7 @@
 
   const halus = (a, b, t) => { const x = Math.min(Math.max((t - a) / (b - a), 0), 1); return x * x * (3 - 2 * x); };
 
-  function bikinSisi(sisi, n, geser, mode, tepi) {
+  function bikinSisi(sisi, n, geser, mode, baris, cermin) {
     const { w, h, data } = sumber;
     const c = document.createElement("canvas");
     c.width = c.height = n;
@@ -238,20 +268,23 @@
         let [dx, dy, dz] = f(a, b);
         const len = Math.hypot(dx, dy, dz); dx /= len; dy /= len; dz /= len;
         const lon = Math.atan2(dx, dz) + Math.PI + geser;
-        const lat = Math.asin(Math.min(Math.max(dy, -1), 1));
+        let lat = Math.asin(Math.min(Math.max(dy, -1), 1));
+        if (cermin && lat < 0) lat = -lat;  // langit dicerminkan ke bawah horizon
         let u = (lon / TAU + 0.5) % 1; if (u < 0) u += 1;
         const k = (j * n + i) * 4;
+        let px, py, ulang;
         if (!flat) {
-          for (let ch = 0; ch < 3; ch++) o[k + ch] = ambil(u * w, (0.5 - lat / Math.PI) * h, ch, true);
+          px = u * w; py = (0.5 - lat / Math.PI) * h; ulang = true;
         } else {
           let m = ((u + 0.75) % 1) * 2; m = m < 1 ? m : 2 - m;  // cermin: ujung kiri & kanan selalu nyambung
-          const atas = halus(-0.06, 0.14, lat - band / 2), bawah = halus(-0.06, 0.14, -band / 2 - lat);
-          for (let ch = 0; ch < 3; ch++) {
-            let v = ambil(m * w, (0.5 - lat / band) * h, ch, false);
-            v = v * (1 - atas) + tepi.atas[ch] * atas;
-            v = v * (1 - bawah) + tepi.bawah[ch] * bawah;
-            o[k + ch] = v;
-          }
+          px = m * w; py = barisTarik(lat, band, 0.9) * h; ulang = false;
+        }
+        // dekat titik paling atas/bawah, campur sama warna rata-rata barisnya biar nggak jadi pusaran
+        const kutub = halus(Math.PI / 2 - 0.75, Math.PI / 2 - 0.05, Math.abs(lat));
+        const by = Math.min(Math.max(Math.round(py - 0.5), 0), h - 1) * 3;
+        for (let ch = 0; ch < 3; ch++) {
+          const v = ambil(px, py, ch, ulang);
+          o[k + ch] = v * (1 - kutub) + baris[by + ch] * kutub;
         }
         o[k + 3] = 255;
       }
@@ -266,11 +299,11 @@
     el("proses").disabled = el("zip").disabled = true;
     el("muka").innerHTML = ""; hasil = {};
     const mode = modeDipakai();
-    const tepi = mode === "flat" ? { atas: warnaTepi(true), bawah: warnaTepi(false) } : null;
+    const baris = warnaBaris(), cermin = el("bawah").value === "cermin";
     for (const s of SISI) {
       el("status").textContent = `Memproses sisi ${s} (${mode === "flat" ? "gambar biasa" : "panorama 360°"})...`;
       await new Promise(r => setTimeout(r, 20));  // kasih napas biar UI nggak beku
-      let c = bikinSisi(s, n, geser, mode, tepi);
+      let c = bikinSisi(s, n, geser, mode, baris, cermin);
       // rotasi bawaan Roblox + rotasi tambahan dari pilihan user (kalau masih ada yang kurang pas)
       const extra = s === "Up" ? Number(el("up-rot").value) : s === "Dn" ? Number(el("dn-rot").value) : 0;
       c = putarKanvas(c, ROBLOX[s].putar + extra);
