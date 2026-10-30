@@ -97,8 +97,8 @@
   <div class="panel cepat" style="margin-top: 18px">
     <span class="label">Langkah 2 • Cara cepat</span>
     <h3>Upload otomatis ke Roblox → langsung jadi 1 file Sky</h3>
-    <p class="catatan" style="margin-top: 6px">Login pakai akun Roblox (login resmi Roblox, password kamu nggak lewat web ini). 6 gambar di-upload ke akun kamu, terus file Sky <code>.rbxmx</code> langsung ke-download dengan ID yang udah keisi.</p>
-    <div class="akun" id="akun">
+    <p class="catatan" style="margin-top: 6px" id="info-cepat">Klik tombol di bawah: 6 gambar di-upload ke Roblox lewat server NX, terus file Sky <code>.rbxmx</code> langsung ke-download dengan ID yang udah keisi. Nggak perlu login.</p>
+    <div class="akun" id="akun" hidden>
       <span id="akun-teks">Belum login</span>
       <button class="btn" id="btn-login">Login pakai Roblox</button>
       <button class="btn" id="btn-logout" hidden>Keluar</button>
@@ -107,7 +107,7 @@
       <button class="btn utama" id="btn-otomatis" disabled>Upload & Download Sky</button>
     </div>
     <div id="status-otomatis" class="catatan"></div>
-    <p class="catatan">⚠️ Gambar yang di-upload kena moderasi Roblox dulu (biasanya beberapa menit) sebelum langitnya kelihatan. Kalau ragu gambarnya lolos, pakai akun alt.</p>
+    <p class="catatan">⚠️ Gambar kena moderasi Roblox dulu (biasanya beberapa menit) sebelum langitnya kelihatan. Jangan upload gambar yang melanggar aturan Roblox. Maksimal 3 skybox per jam per orang.</p>
   </div>
 
   <div class="panel" style="margin-top: 18px">
@@ -309,6 +309,7 @@ ${isi.join("\n")}
   const ambilSesi = () => { try { return localStorage.getItem(KUNCI_SESI) || ""; } catch { return ""; } };
   const taruhSesi = v => { try { v ? localStorage.setItem(KUNCI_SESI, v) : localStorage.removeItem(KUNCI_SESI); } catch {} };
   let akun = null;
+  let mode = "";  // "alt" = tanpa login (API key akun alt), "oauth" = login Roblox, "" = belum siap
 
   (function bacaHash() {  // balik dari login: #nxsesi=... atau #nxerror=...
     const h = new URLSearchParams(location.hash.slice(1));
@@ -318,9 +319,25 @@ ${isi.join("\n")}
   })();
 
   function cekTombol() {
-    el("btn-otomatis").disabled = !(akun && Object.keys(hasil).length === 6);
-    if (akun && Object.keys(hasil).length !== 6 && !el("status-otomatis").textContent)
+    const bisa = mode === "alt" || (mode === "oauth" && akun);
+    el("btn-otomatis").disabled = !(bisa && Object.keys(hasil).length === 6);
+    if (bisa && Object.keys(hasil).length !== 6 && !el("status-otomatis").textContent)
       el("status-otomatis").textContent = "Bikin skybox dulu di Langkah 1, baru klik upload.";
+  }
+
+  async function cekMode() {
+    try {
+      const d = await (await fetch(API + "/sehat")).json();
+      mode = d.alt ? "alt" : (d.siap ? "oauth" : "");
+    } catch { mode = ""; }
+    el("akun").hidden = mode !== "oauth";
+    if (mode === "oauth") {
+      el("info-cepat").innerHTML = "Login pakai akun Roblox (login resmi Roblox, password kamu nggak lewat web ini). 6 gambar di-upload ke akun kamu, terus file Sky <code>.rbxmx</code> langsung ke-download.";
+      await cekAkun();
+    } else if (!mode) {
+      el("status-otomatis").textContent = "Upload otomatis lagi belum aktif, pakai cara manual di bawah dulu.";
+    }
+    cekTombol();
   }
 
   async function cekAkun() {
@@ -368,7 +385,9 @@ ${isi.join("\n")}
       for (const s of ["Bk", "Dn", "Ft", "Lf", "Rt", "Up"]) {
         fd.append(s, await new Promise(r => hasil[s].toBlob(r, "image/png")), `Skybox${s}.png`);
       }
-      const r = await fetch(API + "/skybox", { method: "POST", body: fd, headers: { Authorization: "Bearer " + ambilSesi() } });
+      const r = mode === "alt"
+        ? await fetch(API + "/skybox-alt", { method: "POST", body: fd })
+        : await fetch(API + "/skybox", { method: "POST", body: fd, headers: { Authorization: "Bearer " + ambilSesi() } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
       for (const [s, id] of Object.entries(d.ids)) el("id-" + s).value = id;
@@ -389,7 +408,7 @@ ${isi.join("\n")}
   proses = async function () { await prosesAsli(); el("status-otomatis").textContent = ""; cekTombol(); };
   el("proses").removeEventListener("click", prosesAsli);
   el("proses").addEventListener("click", proses);
-  cekAkun();
+  cekMode();
 
   // tempel 6 ID sekaligus (dipisah spasi / koma / baris baru) di kolom pertama -> otomatis kebagi urut Bk Dn Ft Lf Rt Up
   el("id-Bk").addEventListener("paste", e => {
