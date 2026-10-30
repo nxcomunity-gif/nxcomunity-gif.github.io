@@ -395,7 +395,9 @@ ${isi.join("\n")}
       const n = (el("sky-nama").value.trim() || "NX Sky").replace(/[\\/:*?"<>|]/g, "_");
       unduh(new Blob([h.teks], { type: "application/xml" }), `${n}.rbxmx`);
       const tahan = Object.values(d.moderasi || {}).some(m => m && !/APPROVED/i.test(m));
-      st.textContent = "✅ Beres! File Sky ke-download, drag ke Roblox Studio." + (tahan ? " Gambar masih dicek moderasi Roblox, langit muncul setelah lolos (biasanya beberapa menit)." : "");
+      st.textContent = "✅ Beres! File Sky ke-download, drag ke Roblox Studio." +
+        (tahan ? " Gambar masih dicek moderasi Roblox, langit muncul setelah lolos (biasanya beberapa menit)." : "") +
+        (d.semuaGambar === false ? " ⚠️ Ada sisi yang ID-nya masih ID decal, kalau langit nggak muncul tempel ulang ID-nya di Properties Sky." : "");
     } catch (e) {
       st.textContent = "❌ Gagal: " + e.message;
       if (/login/i.test(e.message)) { taruhSesi(""); cekAkun(); }
