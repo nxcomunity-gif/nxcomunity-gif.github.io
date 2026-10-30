@@ -27,6 +27,12 @@
   .catatan { color: var(--redup); font-size: 13px; margin-top: 14px; }
   #status { color: var(--redup); font-size: 13.5px; margin-top: 10px; min-height: 1.4em; }
   code { background: rgba(255,255,255,.07); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
+  .cepat { border-color: var(--garis); }
+  .akun { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px;
+    border-radius: 12px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08); }
+  .akun img { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--merah); }
+  .akun #akun-teks { flex: 1; min-width: 140px; font-size: 14px; }
+  .akun .btn { padding: 9px 14px; font-size: 13.5px; }
 </style>
 </head>
 <body class="sub">
@@ -88,8 +94,24 @@
     <p class="catatan">Kalau langit atas/bawah kelihatan nyambungnya miring, ganti <b>Rotasi sisi Up / Dn</b> terus bikin ulang.</p>
   </div>
 
+  <div class="panel cepat" style="margin-top: 18px">
+    <span class="label">Langkah 2 • Cara cepat</span>
+    <h3>Upload otomatis ke Roblox → langsung jadi 1 file Sky</h3>
+    <p class="catatan" style="margin-top: 6px">Login pakai akun Roblox (login resmi Roblox, password kamu nggak lewat web ini). 6 gambar di-upload ke akun kamu, terus file Sky <code>.rbxmx</code> langsung ke-download dengan ID yang udah keisi.</p>
+    <div class="akun" id="akun">
+      <span id="akun-teks">Belum login</span>
+      <button class="btn" id="btn-login">Login pakai Roblox</button>
+      <button class="btn" id="btn-logout" hidden>Keluar</button>
+    </div>
+    <div class="aksi-baris">
+      <button class="btn utama" id="btn-otomatis" disabled>Upload & Download Sky</button>
+    </div>
+    <div id="status-otomatis" class="catatan"></div>
+    <p class="catatan">⚠️ Gambar yang di-upload kena moderasi Roblox dulu (biasanya beberapa menit) sebelum langitnya kelihatan. Kalau ragu gambarnya lolos, pakai akun alt.</p>
+  </div>
+
   <div class="panel" style="margin-top: 18px">
-    <span class="label">Langkah 2</span>
+    <span class="label">Langkah 2 • Cara manual</span>
     <h3>Jadiin file Sky Roblox (.rbxmx)</h3>
     <p class="catatan" style="margin-top: 6px">File Roblox nggak bisa nyimpen gambar, cuma ID-nya. Jadi: upload 6 gambar tadi di Roblox Studio (<code>View</code> → <code>Asset Manager</code> → <code>Bulk Import</code>), klik kanan tiap gambar → <b>Copy Asset ID</b>, tempel di bawah. Boleh angka doang, <code>rbxassetid://…</code>, atau link Creator Store.</p>
     <div class="opsi" style="margin-top: 4px">
@@ -281,6 +303,94 @@ ${isi.join("\n")}
     unduh(new Blob([h.teks], { type: "application/xml" }), `${n}.rbxmx`);
     el("status-rbxm").textContent = "✅ File Sky ke-download. Drag ke Roblox Studio.";
   });
+  // ── cara cepat: login Roblox + upload otomatis lewat NX Tools API (VPS) ──
+  const API = "https://116-212-73-233.sslip.io/api";
+  const KUNCI_SESI = "nx-sesi";
+  const ambilSesi = () => { try { return localStorage.getItem(KUNCI_SESI) || ""; } catch { return ""; } };
+  const taruhSesi = v => { try { v ? localStorage.setItem(KUNCI_SESI, v) : localStorage.removeItem(KUNCI_SESI); } catch {} };
+  let akun = null;
+
+  (function bacaHash() {  // balik dari login: #nxsesi=... atau #nxerror=...
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get("nxsesi")) taruhSesi(h.get("nxsesi"));
+    if (h.get("nxerror")) el("status-otomatis").textContent = "❌ Login dibatalin / gagal: " + h.get("nxerror");
+    if (h.get("nxsesi") || h.get("nxerror")) history.replaceState(null, "", location.pathname + location.search);
+  })();
+
+  function cekTombol() {
+    el("btn-otomatis").disabled = !(akun && Object.keys(hasil).length === 6);
+    if (akun && Object.keys(hasil).length !== 6 && !el("status-otomatis").textContent)
+      el("status-otomatis").textContent = "Bikin skybox dulu di Langkah 1, baru klik upload.";
+  }
+
+  async function cekAkun() {
+    const sesi = ambilSesi();
+    akun = null;
+    if (sesi) {
+      try {
+        const r = await fetch(API + "/me", { headers: { Authorization: "Bearer " + sesi } });
+        const d = await r.json();
+        if (d.login) akun = d; else taruhSesi("");
+      } catch { el("akun-teks").textContent = "Server NX lagi nggak bisa dihubungi"; }
+    }
+    const t = el("akun-teks");
+    t.innerHTML = "";
+    if (akun) {
+      if (akun.foto) {
+        const i = new Image();
+        i.src = akun.foto; i.alt = "";
+        i.style.cssText = "vertical-align:middle;margin-right:8px";
+        t.appendChild(i);
+      }
+      t.append("Login sebagai ");
+      const b = document.createElement("b"); b.textContent = akun.nama; t.appendChild(b);
+    } else if (!t.textContent) t.textContent = "Belum login";
+    el("btn-login").hidden = !!akun;
+    el("btn-logout").hidden = !akun;
+    cekTombol();
+  }
+
+  el("btn-login").addEventListener("click", () => {
+    location.href = API + "/login?back=" + encodeURIComponent(location.origin + location.pathname);
+  });
+  el("btn-logout").addEventListener("click", async () => {
+    try { await fetch(API + "/logout", { method: "POST", headers: { Authorization: "Bearer " + ambilSesi() } }); } catch {}
+    taruhSesi(""); el("akun-teks").textContent = "Belum login"; cekAkun();
+  });
+
+  el("btn-otomatis").addEventListener("click", async () => {
+    const st = el("status-otomatis");
+    el("btn-otomatis").disabled = true;
+    st.textContent = "⏳ Upload 6 gambar ke Roblox... bisa 20–60 detik, jangan tutup halaman.";
+    try {
+      const fd = new FormData();
+      fd.append("nama", el("sky-nama").value.trim() || "NX Sky");
+      for (const s of ["Bk", "Dn", "Ft", "Lf", "Rt", "Up"]) {
+        fd.append(s, await new Promise(r => hasil[s].toBlob(r, "image/png")), `Skybox${s}.png`);
+      }
+      const r = await fetch(API + "/skybox", { method: "POST", body: fd, headers: { Authorization: "Bearer " + ambilSesi() } });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+      for (const [s, id] of Object.entries(d.ids)) el("id-" + s).value = id;
+      const h = bikinRbxmx();
+      const n = (el("sky-nama").value.trim() || "NX Sky").replace(/[\\/:*?"<>|]/g, "_");
+      unduh(new Blob([h.teks], { type: "application/xml" }), `${n}.rbxmx`);
+      const tahan = Object.values(d.moderasi || {}).some(m => m && !/APPROVED/i.test(m));
+      st.textContent = "✅ Beres! File Sky ke-download, drag ke Roblox Studio." + (tahan ? " Gambar masih dicek moderasi Roblox, langit muncul setelah lolos (biasanya beberapa menit)." : "");
+    } catch (e) {
+      st.textContent = "❌ Gagal: " + e.message;
+      if (/login/i.test(e.message)) { taruhSesi(""); cekAkun(); }
+    }
+    cekTombol();
+  });
+
+  // tombol upload aktif begitu 6 sisi selesai dibikin
+  const prosesAsli = proses;
+  proses = async function () { await prosesAsli(); el("status-otomatis").textContent = ""; cekTombol(); };
+  el("proses").removeEventListener("click", prosesAsli);
+  el("proses").addEventListener("click", proses);
+  cekAkun();
+
   // tempel 6 ID sekaligus (dipisah spasi / koma / baris baru) di kolom pertama -> otomatis kebagi urut Bk Dn Ft Lf Rt Up
   el("id-Bk").addEventListener("paste", e => {
     const ids = (e.clipboardData.getData("text").match(/\d{5,}/g) || []);
