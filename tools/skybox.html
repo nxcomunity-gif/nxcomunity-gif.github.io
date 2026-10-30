@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skybox Converter — NX COMMUNITY</title>
+<link rel="icon" href="../nx_logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  .drop { border: 2px dashed var(--garis); border-radius: 14px; padding: 34px 16px; text-align: center; cursor: pointer;
+    background: rgba(0,0,0,.25); transition: border-color .15s, background .15s; }
+  .drop.aktif, .drop:hover { border-color: var(--merah); background: rgba(220,30,40,.08); }
+  .drop b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .drop span { color: var(--redup); font-size: 13.5px; }
+  #asli { margin-top: 16px; border-radius: 10px; max-height: 260px; width: 100%; object-fit: contain; background: #000; display: none; }
+  .opsi { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  .muka { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin-top: 18px; }
+  .muka figure { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 8px; text-align: center; }
+  .muka canvas { width: 100%; aspect-ratio: 1; border-radius: 8px; display: block; background: #000; }
+  .muka figcaption { font-size: 12.5px; margin-top: 6px; color: var(--redup); }
+  .muka figcaption b { color: var(--teks); }
+  .muka a { font-size: 12px; color: var(--merah-terang); }
+  .aksi-baris { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .catatan { color: var(--redup); font-size: 13px; margin-top: 14px; }
+  #status { color: var(--redup); font-size: 13.5px; margin-top: 10px; min-height: 1.4em; }
+  code { background: rgba(255,255,255,.07); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
+</style>
+</head>
+<body class="sub">
+<nav class="nav">
+  <a class="merek" href="../index.html"><span class="bulat"></span>NX COMMUNITY</a>
+  <div class="menu"><a href="../index.html#tools">Tools</a><a class="join" href="https://discord.gg/Rg8Uk4Msvd" target="_blank" rel="noopener">Join Discord</a></div>
+</nav>
+
+<main class="wadah">
+  <div class="kepala-tool">
+    <span class="label">Gambar & Tekstur</span>
+    <h1>Skybox Converter</h1>
+    <p>Upload gambar panorama 360° (rasio 2:1, equirectangular), terus jadi 6 sisi skybox: Bk, Dn, Ft, Lf, Rt, Up. Semua diproses di HP/PC kamu, nggak di-upload ke mana-mana.</p>
+  </div>
+
+  <div class="panel">
+    <label class="drop" id="drop" for="file">
+      <b>Klik atau taruh gambar panorama di sini</b>
+      <span>PNG / JPG / WEBP, idealnya rasio 2:1 (contoh 4096×2048)</span>
+    </label>
+    <input id="file" type="file" accept="image/*" hidden>
+    <img id="asli" alt="Panorama asli">
+
+    <div class="opsi" style="margin-top: 6px">
+      <div>
+        <label class="f" for="ukuran">Ukuran tiap sisi</label>
+        <select class="f" id="ukuran">
+          <option value="512">512 px</option>
+          <option value="1024" selected>1024 px (Roblox maks)</option>
+        </select>
+      </div>
+      <div>
+        <label class="f" for="putar">Putar arah depan</label>
+        <select class="f" id="putar">
+          <option value="0" selected>0°</option>
+          <option value="90">90°</option>
+          <option value="180">180°</option>
+          <option value="270">270°</option>
+        </select>
+      </div>
+      <div>
+        <label class="f" for="up-rot">Rotasi sisi Up</label>
+        <select class="f" id="up-rot"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+      </div>
+      <div>
+        <label class="f" for="dn-rot">Rotasi sisi Dn</label>
+        <select class="f" id="dn-rot"><option value="0" selected>0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select>
+      </div>
+    </div>
+
+    <div class="aksi-baris">
+      <button class="btn utama" id="proses" disabled>Bikin Skybox</button>
+      <button class="btn" id="zip" disabled>Download ZIP (6 file)</button>
+    </div>
+    <div id="status"></div>
+
+    <div class="muka" id="muka"></div>
+
+    <p class="catatan">Cara pakai di Roblox Studio: upload 6 gambar lewat Asset Manager, terus di <code>Lighting</code> → <code>Sky</code> isi <code>SkyboxBk</code>, <code>SkyboxDn</code>, <code>SkyboxFt</code>, <code>SkyboxLf</code>, <code>SkyboxRt</code>, <code>SkyboxUp</code> sesuai nama file. Kalau langit atas/bawah kelihatan nyambungnya miring, ganti <b>Rotasi sisi Up / Dn</b> terus bikin ulang.</p>
+  </div>
+</main>
+
+<footer class="kaki"><div class="wadah">© NX COMMUNITY • <a href="../index.html">Beranda</a></div></footer>
+
+<script src="../api.js"></script>
+<script>
+  const SISI = ["Ft", "Rt", "Bk", "Lf", "Up", "Dn"];
+  // arah 3D untuk tiap piksel (a = kiri→kanan, b = atas→bawah, -1..1); +z = depan
+  const ARAH = {
+    Ft: (a, b) => [a, -b, 1],
+    Rt: (a, b) => [1, -b, -a],
+    Bk: (a, b) => [-a, -b, -1],
+    Lf: (a, b) => [-1, -b, a],
+    Up: (a, b) => [a, 1, b],
+    Dn: (a, b) => [a, -1, -b],
+  };
+  const el = id => document.getElementById(id);
+  let sumber = null, nama = "skybox", hasil = {};
+
+  function muat(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+    nama = file.name.replace(/\.[^.]+$/, "") || "skybox";
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const x = c.getContext("2d");
+      x.drawImage(img, 0, 0);
+      sumber = { w: c.width, h: c.height, data: x.getImageData(0, 0, c.width, c.height).data };
+      el("asli").src = img.src; el("asli").style.display = "block";
+      el("proses").disabled = false;
+      const r = (c.width / c.height).toFixed(2);
+      el("status").textContent = `Gambar ${c.width}×${c.height} (rasio ${r}:1)` + (Math.abs(r - 2) > 0.05 ? " — bukan 2:1, hasil bisa kurang pas." : "");
+    };
+    img.src = URL.createObjectURL(file);
+  }
+
+  function putarKanvas(src, derajat) {
+    if (!derajat) return src;
+    const c = document.createElement("canvas");
+    c.width = src.width; c.height = src.height;
+    const x = c.getContext("2d");
+    x.translate(c.width / 2, c.height / 2);
+    x.rotate(derajat * Math.PI / 180);
+    x.drawImage(src, -src.width / 2, -src.height / 2);
+    return c;
+  }
+
+  function bikinSisi(sisi, n, geser) {
+    const { w, h, data } = sumber;
+    const c = document.createElement("canvas");
+    c.width = c.height = n;
+    const x = c.getContext("2d");
+    const out = x.createImageData(n, n);
+    const o = out.data, f = ARAH[sisi];
+    for (let j = 0; j < n; j++) {
+      const b = (2 * (j + 0.5)) / n - 1;
+      for (let i = 0; i < n; i++) {
+        const a = (2 * (i + 0.5)) / n - 1;
+        const [dx, dy, dz] = f(a, b);
+        const lon = Math.atan2(dx, dz) + geser;
+        const lat = Math.atan2(dy, Math.hypot(dx, dz));
+        let u = (0.5 + lon / (2 * Math.PI)) % 1; if (u < 0) u += 1;
+        const v = 0.5 - lat / Math.PI;
+        // bilinear
+        const fx = u * w - 0.5, fy = Math.min(Math.max(v * h - 0.5, 0), h - 1);
+        const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+        const xa = (x0 % w + w) % w, xb = (xa + 1) % w, yb = Math.min(y0 + 1, h - 1);
+        const p00 = (y0 * w + xa) * 4, p10 = (y0 * w + xb) * 4, p01 = (yb * w + xa) * 4, p11 = (yb * w + xb) * 4;
+        const k = (j * n + i) * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          o[k + ch] = (data[p00 + ch] * (1 - tx) + data[p10 + ch] * tx) * (1 - ty) + (data[p01 + ch] * (1 - tx) + data[p11 + ch] * tx) * ty;
+        }
+        o[k + 3] = 255;
+      }
+    }
+    x.putImageData(out, 0, 0);
+    return c;
+  }
+
+  async function proses() {
+    const n = Number(el("ukuran").value);
+    const geser = Number(el("putar").value) * Math.PI / 180;
+    el("proses").disabled = el("zip").disabled = true;
+    el("muka").innerHTML = ""; hasil = {};
+    for (const s of SISI) {
+      el("status").textContent = `Memproses sisi ${s}...`;
+      await new Promise(r => setTimeout(r, 20));  // kasih napas biar UI nggak beku
+      let c = bikinSisi(s, n, geser);
+      if (s === "Up") c = putarKanvas(c, Number(el("up-rot").value));
+      if (s === "Dn") c = putarKanvas(c, Number(el("dn-rot").value));
+      hasil[s] = c;
+      const fig = document.createElement("figure");
+      const tampil = document.createElement("canvas");
+      tampil.width = tampil.height = 256;
+      tampil.getContext("2d").drawImage(c, 0, 0, 256, 256);
+      const link = document.createElement("a");
+      link.textContent = "download";
+      link.href = "#";
+      link.onclick = e => { e.preventDefault(); c.toBlob(b => unduh(b, `${nama}_Skybox${s}.png`), "image/png"); };
+      const cap = document.createElement("figcaption");
+      cap.innerHTML = `<b>Skybox${s}</b> • `;
+      cap.appendChild(link);
+      fig.append(tampil, cap);
+      el("muka").appendChild(fig);
+    }
+    el("status").textContent = "Selesai! Download satu-satu atau sekaligus ZIP.";
+    el("proses").disabled = false; el("zip").disabled = false;
+  }
+
+  function unduh(blob, namaFile) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = namaFile;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  async function zip() {
+    if (typeof JSZip === "undefined") { el("status").textContent = "Library ZIP gagal dimuat, download satu-satu aja."; return; }
+    el("status").textContent = "Bikin ZIP...";
+    const z = new JSZip();
+    for (const s of SISI) {
+      const b = await new Promise(r => hasil[s].toBlob(r, "image/png"));
+      z.file(`${nama}_Skybox${s}.png`, b);
+    }
+    unduh(await z.generateAsync({ type: "blob" }), `${nama}_skybox.zip`);
+    el("status").textContent = "ZIP ke-download.";
+  }
+
+  el("file").addEventListener("change", e => muat(e.target.files[0]));
+  const drop = el("drop");
+  ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("aktif"); }));
+  ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("aktif"); }));
+  drop.addEventListener("drop", e => muat(e.dataTransfer.files[0]));
+  el("proses").addEventListener("click", proses);
+  el("zip").addEventListener("click", zip);
+</script>
+</body>
+</html>

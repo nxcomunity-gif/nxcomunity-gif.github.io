@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lua Editor — NX COMMUNITY</title>
+<link rel="icon" href="../nx_logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/lua/lua.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
+<style>
+  .alat { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .alat .btn { padding: 9px 14px; font-size: 13.5px; }
+  .alat input.f { width: 210px; padding: 9px 12px; font-size: 14px; }
+  .info { margin-left: auto; color: var(--redup); font-size: 12.5px; }
+  .editor-box { border: 1px solid var(--garis); border-radius: 14px; overflow: hidden; }
+  .CodeMirror { height: 64vh; min-height: 360px; font-family: "JetBrains Mono", monospace; font-size: 14px;
+    background: #0d0d12; color: #e8e8ee; }
+  .CodeMirror-gutters { background: #0a0a0e; border-right: 1px solid rgba(255,255,255,.06); }
+  .CodeMirror-linenumber { color: #555; }
+  .CodeMirror-cursor { border-left: 2px solid var(--merah-terang); }
+  .CodeMirror-selected, .CodeMirror-focused .CodeMirror-selected { background: rgba(220,30,40,.28) !important; }
+  .CodeMirror-matchingbracket { color: #fff !important; background: rgba(220,30,40,.35); }
+  .cm-keyword { color: #ff5a63; font-weight: 600; }
+  .cm-builtin { color: #ffb86b; }
+  .cm-string { color: #9be28a; }
+  .cm-number { color: #c79bff; }
+  .cm-comment { color: #6b6b78; font-style: italic; }
+  .cm-variable, .cm-variable-2 { color: #e8e8ee; }
+  .cm-operator { color: #ff8a8f; }
+  .CodeMirror-dialog { background: #16161c; color: var(--teks); border-color: var(--garis); }
+  .CodeMirror-dialog input { color: var(--teks); }
+  .tips { color: var(--redup); font-size: 13px; margin-top: 12px; }
+  kbd { background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+</style>
+</head>
+<body class="sub">
+<nav class="nav">
+  <a class="merek" href="../index.html"><span class="bulat"></span>NX COMMUNITY</a>
+  <div class="menu"><a href="../index.html#tools">Tools</a><a class="join" href="https://discord.gg/Rg8Uk4Msvd" target="_blank" rel="noopener">Join Discord</a></div>
+</nav>
+
+<main class="wadah">
+  <div class="kepala-tool">
+    <span class="label">Coding</span>
+    <h1>Lua Editor</h1>
+    <p>Editor Luau buat Roblox: warna sintaks, auto-tutup kurung, cari & ganti. Tulisan kamu disimpan otomatis di browser ini.</p>
+  </div>
+
+  <div class="alat">
+    <input class="f" id="nama" value="Script.lua" aria-label="Nama file">
+    <button class="btn utama" id="unduh">Download</button>
+    <button class="btn" id="salin">Copy</button>
+    <label class="btn" for="buka" style="margin:0">Buka file</label>
+    <input id="buka" type="file" accept=".lua,.luau,.txt" hidden>
+    <button class="btn" id="baru">Baru</button>
+    <span class="info" id="info">Baris 1, Kolom 1</span>
+  </div>
+  <div class="editor-box"><textarea id="kode"></textarea></div>
+  <p class="tips">Shortcut: <kbd>Ctrl+F</kbd> cari, <kbd>Shift+Ctrl+F</kbd> ganti, <kbd>Ctrl+S</kbd> download, <kbd>Tab</kbd> indent.</p>
+</main>
+
+<footer class="kaki"><div class="wadah">© NX COMMUNITY • <a href="../index.html">Beranda</a></div></footer>
+
+<script src="../api.js"></script>
+<script>
+  const KUNCI = "nx-lua-editor";
+  const CONTOH = `-- NX COMMUNITY Lua Editor
+local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+\tprint("Selamat datang di NX, " .. player.Name .. "!")
+end)
+`;
+  // simpanan browser bisa diblokir (mode privat) -> tetap jalan tanpa simpan
+  const baca = () => { try { return JSON.parse(localStorage.getItem(KUNCI)); } catch { return null; } };
+  const simpan = d => { try { localStorage.setItem(KUNCI, JSON.stringify(d)); } catch {} };
+  const awal = baca() || { kode: CONTOH, nama: "Script.lua" };
+  const nama = document.getElementById("nama");
+  nama.value = awal.nama;
+
+  const ed = CodeMirror.fromTextArea(document.getElementById("kode"), {
+    mode: "lua", lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: true,
+    matchBrackets: true, autoCloseBrackets: true, lineWrapping: false,
+    extraKeys: { "Ctrl-S": () => unduh(), "Cmd-S": () => unduh() },
+  });
+  ed.setValue(awal.kode);
+  let jeda;
+  const simpanNanti = () => { clearTimeout(jeda); jeda = setTimeout(() => simpan({ kode: ed.getValue(), nama: nama.value }), 400); };
+  ed.on("change", simpanNanti);
+  nama.addEventListener("input", simpanNanti);
+  ed.on("cursorActivity", () => {
+    const p = ed.getCursor();
+    document.getElementById("info").textContent = `Baris ${p.line + 1}, Kolom ${p.ch + 1} • ${ed.lineCount()} baris`;
+  });
+
+  function unduh() {
+    const n = (nama.value.trim() || "Script.lua").replace(/[\\/:*?"<>|]/g, "_");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([ed.getValue()], { type: "text/plain" }));
+    a.download = /\.(lua|luau|txt)$/i.test(n) ? n : n + ".lua";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  document.getElementById("unduh").onclick = unduh;
+  document.getElementById("salin").onclick = async e => {
+    try { await navigator.clipboard.writeText(ed.getValue()); e.target.textContent = "Ke-copy!"; }
+    catch { ed.execCommand("selectAll"); document.execCommand("copy"); e.target.textContent = "Ke-copy!"; }
+    setTimeout(() => e.target.textContent = "Copy", 1500);
+  };
+  document.getElementById("buka").onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    f.text().then(t => { ed.setValue(t); nama.value = f.name; simpanNanti(); });
+    e.target.value = "";
+  };
+  document.getElementById("baru").onclick = () => {
+    if (ed.getValue().trim() && !confirm("Kosongin editor? Kode sekarang bakal hilang.")) return;
+    ed.setValue(""); nama.value = "Script.lua"; simpanNanti(); ed.focus();
+  };
+</script>
+</body>
+</html>

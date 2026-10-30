@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pajak Robux — NX COMMUNITY</title>
+<link rel="icon" href="../nx_logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+  .dua { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .dua { grid-template-columns: 1fr; } }
+  .hasil { margin-top: 18px; padding: 18px; border-radius: 12px; background: rgba(220,30,40,.1); border: 1px solid var(--garis); }
+  .hasil .angka { font-size: 34px; font-weight: 800; color: var(--merah-terang); line-height: 1.1; }
+  .hasil .ket { color: var(--redup); font-size: 13.5px; margin-top: 4px; }
+  .baris { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed rgba(255,255,255,.08); font-size: 14px; }
+  .baris span:first-child { color: var(--redup); }
+  .catatan { color: var(--redup); font-size: 13px; margin-top: 18px; }
+  .rp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+</style>
+</head>
+<body class="sub">
+<nav class="nav">
+  <a class="merek" href="../index.html"><span class="bulat"></span>NX COMMUNITY</a>
+  <div class="menu"><a href="../index.html#tools">Tools</a><a class="join" href="https://discord.gg/Rg8Uk4Msvd" target="_blank" rel="noopener">Join Discord</a></div>
+</nav>
+
+<main class="wadah">
+  <div class="kepala-tool">
+    <span class="label">Data & Game</span>
+    <h1>Kalkulator Pajak Robux</h1>
+    <p>Roblox motong 30% dari tiap penjualan gamepass, item, atau developer product. Kamu cuma dapet 70%.</p>
+  </div>
+
+  <div class="dua">
+    <div class="panel">
+      <h3>Mau dapet bersih berapa?</h3>
+      <label class="f" for="target">Robux yang mau kamu terima</label>
+      <input class="f" id="target" type="number" min="0" inputmode="numeric" value="1000">
+      <div class="hasil">
+        <div class="ket">Pasang harga</div>
+        <div class="angka" id="harga">1.429 R$</div>
+        <div class="ket" id="harga-ket">Kamu terima 1.000 R$ setelah potongan 30%.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Harga jual segini, dapet berapa?</h3>
+      <label class="f" for="jual">Harga jual (Robux)</label>
+      <input class="f" id="jual" type="number" min="0" inputmode="numeric" value="1000">
+      <div class="hasil">
+        <div class="ket">Kamu terima bersih</div>
+        <div class="angka" id="bersih">700 R$</div>
+        <div class="ket" id="bersih-ket">Dipotong Roblox 300 R$ (30%).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top: 18px">
+    <h3>Konversi ke Rupiah (opsional)</h3>
+    <div class="rp">
+      <div>
+        <label class="f" for="kurs">Harga 1.000 Robux (Rp)</label>
+        <input class="f" id="kurs" type="number" min="0" inputmode="numeric" value="140000">
+      </div>
+      <div>
+        <label class="f" for="jumlah-rp">Jumlah Robux</label>
+        <input class="f" id="jumlah-rp" type="number" min="0" inputmode="numeric" value="1000">
+      </div>
+    </div>
+    <div class="baris"><span>Nilai kotor</span><span id="rp-kotor">Rp140.000</span></div>
+    <div class="baris"><span>Nilai setelah pajak 30%</span><span id="rp-bersih">Rp98.000</span></div>
+    <p class="catatan">Kurs Robux ke Rupiah beda-beda tiap seller, ganti angkanya sesuai harga yang kamu pakai.</p>
+  </div>
+</main>
+
+<footer class="kaki"><div class="wadah">© NX COMMUNITY • <a href="../index.html">Beranda</a></div></footer>
+
+<script src="../api.js"></script>
+<script>
+  const f = n => Math.round(n).toLocaleString("id-ID");
+  const v = id => Math.max(0, Number(document.getElementById(id).value) || 0);
+  const tulis = (id, t) => document.getElementById(id).textContent = t;
+  function hitung() {
+    const target = v("target");
+    // hitung pakai bilangan bulat (×7/10) biar nggak kena error desimal, contoh 700/0.7 = 1000.0000000001
+    const harga = Math.ceil(target * 10 / 7);  // pembulatan ke atas biar bersihnya minimal target
+    tulis("harga", f(harga) + " R$");
+    tulis("harga-ket", `Kamu terima ${f(Math.floor(harga * 7 / 10))} R$ setelah potongan 30%.`);
+    const jual = v("jual");
+    const bersih = Math.floor(jual * 7 / 10);
+    tulis("bersih", f(bersih) + " R$");
+    tulis("bersih-ket", `Dipotong Roblox ${f(jual - bersih)} R$ (30%).`);
+    const kurs = v("kurs"), jml = v("jumlah-rp");
+    tulis("rp-kotor", "Rp" + f(jml / 1000 * kurs));
+    tulis("rp-bersih", "Rp" + f(jml * 0.7 / 1000 * kurs));
+  }
+  document.querySelectorAll("input").forEach(i => i.addEventListener("input", hitung));
+  hitung();
+</script>
+</body>
+</html>

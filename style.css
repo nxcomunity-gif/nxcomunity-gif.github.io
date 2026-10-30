@@ -1,0 +1,96 @@
+/* NX COMMUNITY — tema bersama semua halaman */
+:root {
+  --merah: #dc1e28;
+  --merah-terang: #ff4a53;
+  --merah-gelap: #6e0a10;
+  --bg: #07070a;
+  --kartu: rgba(22, 22, 28, .82);
+  --garis: rgba(220, 30, 40, .35);
+  --teks: #f5f5f5;
+  --redup: #a9a9b2;
+  --radius: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: "Poppins", system-ui, sans-serif;
+  color: var(--teks);
+  background: var(--bg);
+  overflow-x: hidden;
+  line-height: 1.55;
+}
+a { color: inherit; }
+img { max-width: 100%; display: block; }
+
+/* background merah-hitam + logo samar + percikan api */
+.bg { position: fixed; inset: 0; z-index: -2;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(220,30,40,.30), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(110,10,16,.45), transparent 65%),
+    var(--bg); }
+.bg::before { content: ""; position: absolute; inset: -10%;
+  background: url("nx_logo.webp") center 30% / min(160vw, 1300px) no-repeat;
+  opacity: .08; filter: blur(1px); animation: napas 8s ease-in-out infinite; }
+@keyframes napas { 50% { transform: scale(1.05); opacity: .13; } }
+.api { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.api i { position: absolute; bottom: -10px; border-radius: 50%;
+  background: var(--merah); box-shadow: 0 0 8px var(--merah);
+  animation: naik linear infinite; opacity: 0; }
+@keyframes naik { 10% { opacity: .9; } 100% { transform: translateY(-105vh) translateX(var(--geser)); opacity: 0; } }
+
+/* navbar */
+.nav { position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 20px; background: rgba(7,7,10,.78); backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(220,30,40,.18); }
+.nav .merek { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; letter-spacing: .5px; }
+.nav .merek span.bulat { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--merah);
+  background: #000 url("nx_logo.webp") center / 150% no-repeat; }
+.nav .menu { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.nav .menu a { text-decoration: none; font-size: 13.5px; padding: 7px 12px; border-radius: 999px; color: var(--redup); }
+.nav .menu a:hover { color: var(--teks); background: rgba(255,255,255,.06); }
+.nav .menu a.join { color: #fff; background: var(--merah); font-weight: 600; }
+@media (max-width: 640px) { .nav .menu a:not(.join) { display: none; } }
+
+.wadah { width: 100%; max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+section { padding: 56px 0; }
+.label { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 2px; color: var(--merah-terang);
+  text-transform: uppercase; margin-bottom: 8px; }
+h2.judul { font-size: clamp(26px, 5vw, 38px); font-weight: 800; line-height: 1.15; margin-bottom: 10px; }
+p.lead { color: var(--redup); max-width: 620px; }
+
+/* tombol */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 22px; border-radius: 12px; font-weight: 700; font-size: 15px; text-decoration: none;
+  border: 1px solid var(--garis); background: var(--kartu); color: var(--teks); cursor: pointer;
+  transition: transform .15s, box-shadow .15s, border-color .15s; font-family: inherit; }
+.btn:hover { transform: translateY(-2px); border-color: var(--merah); box-shadow: 0 8px 24px rgba(220,30,40,.3); }
+.btn.utama { background: linear-gradient(135deg, var(--merah), var(--merah-gelap)); border-color: var(--merah-terang); }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+/* kartu */
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+.kartu { position: relative; background: var(--kartu); border: 1px solid rgba(255,255,255,.07);
+  border-radius: var(--radius); padding: 22px; text-decoration: none; display: flex; flex-direction: column; gap: 8px;
+  transition: transform .15s, border-color .15s, box-shadow .15s; }
+a.kartu:hover { transform: translateY(-3px); border-color: var(--garis); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.kartu .ikon { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+  background: rgba(220,30,40,.14); color: var(--merah-terang); font-size: 22px; }
+.kartu .tag { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--merah-terang); }
+.kartu h3 { font-size: 18px; font-weight: 700; }
+.kartu p { color: var(--redup); font-size: 14px; flex: 1; }
+.kartu .aksi { font-size: 13px; font-weight: 700; color: var(--merah-terang); margin-top: 6px; }
+
+/* panel tool */
+.panel { background: var(--kartu); border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius); padding: 22px; }
+label.f { display: block; font-size: 13px; color: var(--redup); margin: 14px 0 6px; }
+input.f, select.f, textarea.f { width: 100%; padding: 12px 14px; border-radius: 10px; font: inherit; font-size: 15px;
+  color: var(--teks); background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.12); }
+input.f:focus, select.f:focus, textarea.f:focus { outline: none; border-color: var(--merah); }
+
+footer.kaki { padding: 34px 0 40px; text-align: center; color: #777; font-size: 13px; border-top: 1px solid rgba(255,255,255,.06); }
+footer.kaki a { color: var(--redup); }
+
+.kepala-tool { padding: 42px 0 18px; }
+.kepala-tool h1 { font-size: clamp(28px, 6vw, 42px); font-weight: 800; line-height: 1.1; }
+.kepala-tool p { color: var(--redup); margin-top: 8px; max-width: 640px; }
