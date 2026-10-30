@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Converter — NX COMMUNITY</title>
+<link rel="icon" href="../nx_logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
+<style>
+  .drop { border: 2px dashed var(--garis); border-radius: 14px; padding: 30px 16px; text-align: center; cursor: pointer;
+    background: rgba(0,0,0,.25); transition: border-color .15s, background .15s; display: block; }
+  .drop.aktif, .drop:hover { border-color: var(--merah); background: rgba(220,30,40,.08); }
+  .drop b { display: block; font-size: 17px; margin-bottom: 4px; }
+  .drop span { color: var(--redup); font-size: 13.5px; }
+  .gelombang { position: relative; margin-top: 16px; border-radius: 12px; overflow: hidden; background: #0b0b10;
+    border: 1px solid rgba(255,255,255,.08); cursor: pointer; display: none; }
+  .gelombang canvas { display: block; width: 100%; height: 120px; }
+  .opsi { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+  .aksi-baris { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .info { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-top: 16px; }
+  .info div { background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 10px 12px; }
+  .info small { display: block; color: var(--redup); font-size: 12px; }
+  .info b { font-size: 16px; }
+  .cek { margin-top: 14px; display: grid; gap: 6px; font-size: 14px; }
+  .ok { color: #7be08a; } .gagal { color: #ff6b72; }
+  #status { color: var(--redup); font-size: 13.5px; margin-top: 10px; min-height: 1.4em; }
+  .catatan { color: var(--redup); font-size: 13px; margin-top: 14px; }
+  input[type=range] { width: 100%; accent-color: var(--merah); }
+  .nilai { float: right; color: var(--teks); font-weight: 600; }
+</style>
+</head>
+<body class="sub">
+<nav class="nav">
+  <a class="merek" href="../index.html"><span class="bulat"></span>NX COMMUNITY</a>
+  <div class="menu"><a href="../index.html#tools">Tools</a><a class="join" href="https://discord.gg/Rg8Uk4Msvd" target="_blank" rel="noopener">Join Discord</a></div>
+</nav>
+
+<main class="wadah">
+  <div class="kepala-tool">
+    <span class="label">Audio</span>
+    <h1>Audio Converter</h1>
+    <p>Siapin file audio <b>milik kamu</b> (lagu bikinan sendiri, rekaman, atau musik bebas royalti) biar siap di-upload ke Roblox: convert ke MP3, potong, atur volume, dan cek syarat upload. Semua diproses di HP/PC kamu, nggak di-upload ke mana-mana.</p>
+  </div>
+
+  <div class="panel">
+    <label class="drop" id="drop" for="file">
+      <b>Klik atau taruh file audio di sini</b>
+      <span>MP3 / WAV / OGG / M4A / FLAC (yang bisa diputar browser kamu)</span>
+    </label>
+    <input id="file" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac,.aac" hidden>
+
+    <div class="gelombang" id="gelombang"><canvas id="kanvas" width="1200" height="240"></canvas></div>
+
+    <div class="info" id="info" hidden>
+      <div><small>Durasi asli</small><b id="i-durasi">-</b></div>
+      <div><small>Hasil (setelah dipotong)</small><b id="i-hasil">-</b></div>
+      <div><small>Perkiraan ukuran MP3</small><b id="i-ukuran">-</b></div>
+      <div><small>Puncak volume</small><b id="i-puncak">-</b></div>
+    </div>
+
+    <div class="opsi" style="margin-top: 6px">
+      <div><label class="f" for="mulai">Mulai (detik)</label><input class="f" id="mulai" type="number" min="0" step="0.1" value="0"></div>
+      <div><label class="f" for="selesai">Selesai (detik)</label><input class="f" id="selesai" type="number" min="0" step="0.1" value="0"></div>
+      <div><label class="f" for="bitrate">Kualitas MP3</label>
+        <select class="f" id="bitrate"><option value="128">128 kbps (ringan)</option><option value="192" selected>192 kbps</option><option value="256">256 kbps</option><option value="320">320 kbps (paling bagus)</option></select></div>
+      <div><label class="f" for="kanal">Channel</label>
+        <select class="f" id="kanal"><option value="2" selected>Stereo</option><option value="1">Mono (lebih kecil)</option></select></div>
+    </div>
+    <div class="opsi">
+      <div><label class="f" for="volume">Volume <span class="nilai" id="v-volume">0 dB</span></label><input id="volume" type="range" min="-12" max="12" step="0.5" value="0"></div>
+      <div><label class="f" for="fadein">Fade in <span class="nilai" id="v-fadein">0 s</span></label><input id="fadein" type="range" min="0" max="5" step="0.1" value="0"></div>
+      <div><label class="f" for="fadeout">Fade out <span class="nilai" id="v-fadeout">0 s</span></label><input id="fadeout" type="range" min="0" max="5" step="0.1" value="0"></div>
+      <div><label class="f" for="normal">Normalisasi volume</label>
+        <select class="f" id="normal"><option value="1" selected>Nyala (puncak -1 dB, nggak pecah)</option><option value="0">Mati</option></select></div>
+    </div>
+
+    <div class="aksi-baris">
+      <button class="btn" id="putar" disabled>▶ Dengerin bagian ini</button>
+      <button class="btn utama" id="convert" disabled>Convert & Download MP3</button>
+    </div>
+    <div id="status"></div>
+    <div class="cek" id="cek"></div>
+
+    <p class="catatan">Klik di gelombang buat atur titik <b>mulai</b>, klik kanan (atau tahan) buat titik <b>selesai</b>.
+      Syarat upload audio Roblox yang dicek di sini: format MP3, durasi maks <b>7 menit</b>, ukuran maks <b>20 MB</b>.
+      Upload cuma audio yang memang hak kamu, audio berhak cipta milik orang lain bakal dihapus Roblox.</p>
+  </div>
+</main>
+
+<footer class="kaki"><div class="wadah">© NX COMMUNITY • <a href="../index.html">Beranda</a></div></footer>
+
+<script src="../api.js"></script>
+<script>
+  const el = id => document.getElementById(id);
+  const MAKS_DETIK = 7 * 60, MAKS_MB = 20;
+  let ctx = null, buffer = null, nama = "audio", sumberMain = null;
+
+  const fmtWaktu = s => { s = Math.max(0, s); const m = Math.floor(s / 60); return `${m}:${(s - m * 60).toFixed(1).padStart(4, "0")}`; };
+  const db = x => x > 0 ? (20 * Math.log10(x)).toFixed(1) + " dB" : "-∞ dB";
+
+  async function muat(file) {
+    if (!file) return;
+    nama = file.name.replace(/\.[^.]+$/, "") || "audio";
+    el("status").textContent = "Membaca audio...";
+    try {
+      ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+      buffer = await ctx.decodeAudioData(await file.arrayBuffer());
+    } catch (e) {
+      el("status").textContent = "❌ Format ini nggak bisa dibaca browser kamu. Coba MP3 / WAV.";
+      return;
+    }
+    el("mulai").value = 0;
+    el("selesai").value = buffer.duration.toFixed(1);
+    el("gelombang").style.display = "block";
+    el("info").hidden = false;
+    el("putar").disabled = el("convert").disabled = false;
+    el("status").textContent = `${file.name} • ${buffer.numberOfChannels} channel • ${buffer.sampleRate} Hz`;
+    gambar(); perbarui();
+  }
+
+  function rentang() {
+    const a = Math.min(Math.max(Number(el("mulai").value) || 0, 0), buffer.duration);
+    let b = Math.min(Math.max(Number(el("selesai").value) || buffer.duration, 0), buffer.duration);
+    if (b <= a) b = buffer.duration;
+    return [a, b];
+  }
+
+  function puncak(a, b) {
+    let p = 0;
+    const i0 = Math.floor(a * buffer.sampleRate), i1 = Math.floor(b * buffer.sampleRate);
+    for (let c = 0; c < buffer.numberOfChannels; c++) {
+      const d = buffer.getChannelData(c);
+      for (let i = i0; i < i1; i += 4) { const v = Math.abs(d[i]); if (v > p) p = v; }
+    }
+    return p;
+  }
+
+  function gambar() {
+    const cv = el("kanvas"), g = cv.getContext("2d"), W = cv.width, H = cv.height;
+    g.clearRect(0, 0, W, H);
+    const d = buffer.getChannelData(0), step = Math.ceil(d.length / W);
+    const [a, b] = rentang();
+    g.fillStyle = "rgba(220,30,40,.12)";
+    g.fillRect(a / buffer.duration * W, 0, (b - a) / buffer.duration * W, H);
+    for (let x = 0; x < W; x++) {
+      let mn = 1, mx = -1;
+      for (let i = x * step; i < Math.min((x + 1) * step, d.length); i++) { const v = d[i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+      const t = x / W * buffer.duration;
+      g.fillStyle = t >= a && t <= b ? "#ff4a53" : "#4a4a55";
+      g.fillRect(x, (1 - mx) * H / 2, 1, Math.max(1, (mx - mn) * H / 2));
+    }
+    g.fillStyle = "#fff";
+    g.fillRect(a / buffer.duration * W, 0, 2, H);
+    g.fillRect(b / buffer.duration * W - 2, 0, 2, H);
+  }
+
+  function perbarui() {
+    if (!buffer) return;
+    ["volume", "fadein", "fadeout"].forEach(k => el("v-" + k).textContent = el(k).value + (k === "volume" ? " dB" : " s"));
+    const [a, b] = rentang(), dur = b - a;
+    const kb = Number(el("bitrate").value), mb = dur * kb * 1000 / 8 / 1024 / 1024;
+    el("i-durasi").textContent = fmtWaktu(buffer.duration);
+    el("i-hasil").textContent = fmtWaktu(dur);
+    el("i-ukuran").textContent = mb.toFixed(2) + " MB";
+    el("i-puncak").textContent = db(puncak(a, b));
+    el("cek").innerHTML =
+      `<div class="${dur <= MAKS_DETIK ? "ok" : "gagal"}">${dur <= MAKS_DETIK ? "✅" : "❌"} Durasi ${fmtWaktu(dur)} ${dur <= MAKS_DETIK ? "(maks 7 menit)" : "— kelewat 7 menit, potong dulu"}</div>` +
+      `<div class="${mb <= MAKS_MB ? "ok" : "gagal"}">${mb <= MAKS_MB ? "✅" : "❌"} Ukuran ±${mb.toFixed(1)} MB ${mb <= MAKS_MB ? "(maks 20 MB)" : "— kegedean, turunin kualitas / potong"}</div>`;
+    gambar();
+  }
+
+  // proses: potong + volume + normalisasi + fade -> array Float32 per channel
+  function olah() {
+    const [a, b] = rentang(), sr = buffer.sampleRate;
+    const i0 = Math.floor(a * sr), n = Math.floor((b - a) * sr);
+    const kanal = Number(el("kanal").value);
+    const src = [];
+    for (let c = 0; c < buffer.numberOfChannels; c++) src.push(buffer.getChannelData(c).subarray(i0, i0 + n));
+    const out = [];
+    for (let c = 0; c < kanal; c++) {
+      const o = new Float32Array(n);
+      if (kanal === 1 && src.length > 1) { for (let i = 0; i < n; i++) o[i] = (src[0][i] + src[1][i]) / 2; }
+      else o.set(src[Math.min(c, src.length - 1)]);
+      out.push(o);
+    }
+    let gain = Math.pow(10, Number(el("volume").value) / 20);
+    if (el("normal").value === "1") {
+      let p = 0;
+      for (const o of out) for (let i = 0; i < n; i++) { const v = Math.abs(o[i]); if (v > p) p = v; }
+      if (p > 0) gain *= Math.pow(10, -1 / 20) / p;
+    }
+    const fi = Math.floor(Number(el("fadein").value) * sr), fo = Math.floor(Number(el("fadeout").value) * sr);
+    for (const o of out) for (let i = 0; i < n; i++) {
+      let g = gain;
+      if (i < fi) g *= i / fi;
+      if (i > n - fo) g *= (n - i) / fo;
+      o[i] = Math.max(-1, Math.min(1, o[i] * g));
+    }
+    return { out, sr, n };
+  }
+
+  async function convert() {
+    if (typeof lamejs === "undefined") { el("status").textContent = "❌ Library MP3 gagal dimuat, refresh halaman."; return; }
+    el("convert").disabled = true;
+    const { out, sr, n } = olah();
+    const kb = Number(el("bitrate").value);
+    const enc = new lamejs.Mp3Encoder(out.length, sr, kb);
+    const ke16 = f => { const r = new Int16Array(f.length); for (let i = 0; i < f.length; i++) r[i] = f[i] < 0 ? f[i] * 0x8000 : f[i] * 0x7FFF; return r; };
+    const L = ke16(out[0]), R = out[1] ? ke16(out[1]) : null;
+    const bagian = [], BLOK = 1152 * 200;
+    for (let i = 0; i < n; i += BLOK) {
+      for (let j = i; j < Math.min(i + BLOK, n); j += 1152) {
+        const l = L.subarray(j, j + 1152);
+        const buf = R ? enc.encodeBuffer(l, R.subarray(j, j + 1152)) : enc.encodeBuffer(l);
+        if (buf.length) bagian.push(new Int8Array(buf));
+      }
+      el("status").textContent = `Meng-encode MP3... ${Math.min(100, Math.round((i + BLOK) / n * 100))}%`;
+      await new Promise(r => setTimeout(r, 0));  // biar UI nggak beku
+    }
+    const akhir = enc.flush();
+    if (akhir.length) bagian.push(new Int8Array(akhir));
+    const blob = new Blob(bagian, { type: "audio/mpeg" });
+    const mb = blob.size / 1024 / 1024;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `${nama}_roblox.mp3`;
+    document.body.appendChild(a); a.click(); a.remove();
+    el("status").textContent = `✅ ${nama}_roblox.mp3 ke-download (${mb.toFixed(2)} MB). Upload di Roblox Studio → Asset Manager / Creator Hub.` +
+      (mb > MAKS_MB ? " ⚠️ Masih di atas 20 MB, turunin kualitas." : "");
+    el("convert").disabled = false;
+  }
+
+  function putar() {
+    if (sumberMain) { try { sumberMain.stop(); } catch {} sumberMain = null; el("putar").textContent = "▶ Dengerin bagian ini"; return; }
+    const { out, sr, n } = olah();
+    const b = ctx.createBuffer(out.length, n, sr);
+    out.forEach((o, c) => b.copyToChannel(o, c));
+    sumberMain = ctx.createBufferSource();
+    sumberMain.buffer = b; sumberMain.connect(ctx.destination); sumberMain.start();
+    sumberMain.onended = () => { sumberMain = null; el("putar").textContent = "▶ Dengerin bagian ini"; };
+    el("putar").textContent = "⏹ Stop";
+  }
+
+  // klik gelombang = titik mulai, klik kanan = titik selesai
+  el("gelombang").addEventListener("click", e => {
+    if (!buffer) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    el("mulai").value = ((e.clientX - r.left) / r.width * buffer.duration).toFixed(1); perbarui();
+  });
+  el("gelombang").addEventListener("contextmenu", e => {
+    e.preventDefault(); if (!buffer) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    el("selesai").value = ((e.clientX - r.left) / r.width * buffer.duration).toFixed(1); perbarui();
+  });
+
+  el("file").addEventListener("change", e => muat(e.target.files[0]));
+  const drop = el("drop");
+  ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("aktif"); }));
+  ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("aktif"); }));
+  drop.addEventListener("drop", e => muat(e.dataTransfer.files[0]));
+  ["mulai", "selesai", "bitrate", "kanal", "volume", "fadein", "fadeout", "normal"].forEach(k => el(k).addEventListener("input", perbarui));
+  el("convert").addEventListener("click", convert);
+  el("putar").addEventListener("click", putar);
+</script>
+</body>
+</html>
