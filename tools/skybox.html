@@ -58,6 +58,14 @@
 
     <div class="opsi" style="margin-top: 6px">
       <div>
+        <label class="f" for="mode">Jenis gambar</label>
+        <select class="f" id="mode">
+          <option value="auto" selected>Otomatis</option>
+          <option value="pano">Panorama 360° (2:1)</option>
+          <option value="flat">Gambar biasa (foto / AI)</option>
+        </select>
+      </div>
+      <div>
         <label class="f" for="ukuran">Ukuran tiap sisi</label>
         <select class="f" id="ukuran">
           <option value="512">512 px</option>
@@ -91,7 +99,7 @@
 
     <div class="muka" id="muka"></div>
 
-    <p class="catatan">Kalau langit atas/bawah kelihatan nyambungnya miring, ganti <b>Rotasi sisi Up / Dn</b> terus bikin ulang.</p>
+    <p class="catatan"><b>Panorama 360°</b>: gambar dipakai penuh mengelilingi langit (cocok buat gambar 2:1 / prompt AI "equirectangular"). <b>Gambar biasa</b>: gambar dicerminkan biar ujung kiri-kanan nyambung, langit atas & bawah diisi warna tepi gambar. Rotasi Up/Dn cuma buat penyesuaian kalau masih ada yang kurang pas.</p>
   </div>
 
   <div class="panel cepat" style="margin-top: 18px">
@@ -141,23 +149,37 @@
 <script src="../api.js"></script>
 <script>
   const SISI = ["Ft", "Rt", "Bk", "Lf", "Up", "Dn"];
-  // Arah 3D tiap piksel (a = kiri→kanan, b = atas→bawah, -1..1), sistem z-ke-atas, sama kayak tool
-  // "Panorama to Cubemap" (Jaxry) yang dipakai panduan resmi Roblox "Custom Skyboxes 101".
-  const CUBE = {
-    pz: (a, b) => [-1, -a, -b],
-    nz: (a, b) => [1, a, -b],
-    px: (a, b) => [a, -1, -b],
-    nx: (a, b) => [-a, 1, -b],
-    py: (a, b) => [-b, -a, 1],
-    ny: (a, b) => [b, -a, -1],
+  // Basis tiap sisi Sky Roblox (y ke atas): arah tengah sisi, arah "kanan" & "atas" gambar.
+  // Piksel (fx kiri→kanan, fy bawah→atas, -1..1) => arah = kanan*fx + atas*fy + tengah.
+  const BASIS = {
+    Ft: { dir: [0, 0, -1], right: [-1, 0, 0], up: [0, 1, 0] },
+    Bk: { dir: [0, 0, 1], right: [1, 0, 0], up: [0, 1, 0] },
+    Rt: { dir: [1, 0, 0], right: [0, 0, -1], up: [0, 1, 0] },
+    Lf: { dir: [-1, 0, 0], right: [0, 0, 1], up: [0, 1, 0] },
+    Up: { dir: [0, 1, 0], right: [0, 0, -1], up: [-1, 0, 0] },
+    Dn: { dir: [0, -1, 0], right: [0, 0, -1], up: [1, 0, 0] },
   };
-  // pasangan sisi Roblox <- sisi cubemap + rotasi bawaan (panduan Roblox: Up 90° searah jarum jam, Dn 90° berlawanan)
-  const ROBLOX = {
-    Bk: { dari: "pz", putar: 0 }, Ft: { dari: "nz", putar: 0 },
-    Lf: { dari: "nx", putar: 0 }, Rt: { dari: "px", putar: 0 },
-    Up: { dari: "py", putar: 90 }, Dn: { dari: "ny", putar: -90 },
-  };
-  const ARAH = Object.fromEntries(Object.entries(ROBLOX).map(([s, r]) => [s, CUBE[r.dari]]));
+  const ARAH = Object.fromEntries(Object.entries(BASIS).map(([s, B]) => [s, (a, b) => {
+    const fy = -b;  // b dari atas ke bawah, fy dari bawah ke atas
+    return [0, 1, 2].map(k => B.right[k] * a + B.up[k] * fy + B.dir[k]);
+  }]));
+  const ROBLOX = { Bk: { putar: 0 }, Ft: { putar: 0 }, Lf: { putar: 0 }, Rt: { putar: 0 }, Up: { putar: 0 }, Dn: { putar: 0 } };
+
+  // rata-rata warna beberapa baris paling atas / bawah gambar (buat ngisi langit di mode gambar biasa)
+  function warnaTepi(atas) {
+    const { w, h, data } = sumber;
+    const n = Math.max(1, Math.round(h * 0.03)), c = [0, 0, 0];
+    for (let y = atas ? 0 : h - n; y < (atas ? n : h); y++)
+      for (let x = 0; x < w; x += 2) { const p = (y * w + x) * 4; c[0] += data[p]; c[1] += data[p + 1]; c[2] += data[p + 2]; }
+    const jml = n * Math.ceil(w / 2);
+    return c.map(v => v / jml);
+  }
+  function modeDipakai() {
+    const m = el("mode").value;
+    if (m !== "auto") return m;
+    const r = sumber.w / sumber.h;
+    return r >= 1.5 && r <= 2.5 ? "pano" : "flat";
+  }
   const el = id => document.getElementById(id);
   let sumber = null, nama = "skybox", hasil = {};
 
@@ -190,29 +212,46 @@
     return c;
   }
 
-  function bikinSisi(sisi, n, geser) {
+  const halus = (a, b, t) => { const x = Math.min(Math.max((t - a) / (b - a), 0), 1); return x * x * (3 - 2 * x); };
+
+  function bikinSisi(sisi, n, geser, mode, tepi) {
     const { w, h, data } = sumber;
     const c = document.createElement("canvas");
     c.width = c.height = n;
     const x = c.getContext("2d");
     const out = x.createImageData(n, n);
-    const o = out.data, f = ARAH[sisi];
+    const o = out.data, f = ARAH[sisi], TAU = 2 * Math.PI;
+    const flat = mode === "flat";
+    const band = Math.min(Math.PI, Math.PI * h / w);  // tinggi sudut gambar biasa (lebarnya nutup 180°, dicerminkan jadi 360°)
+    const ambil = (px, py, ch, ulang) => {           // bilinear; ulang = sambung kiri-kanan (panorama)
+      const fx = px - 0.5, fy = Math.min(Math.max(py - 0.5, 0), h - 1);
+      const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+      const xa = ulang ? (x0 % w + w) % w : Math.min(Math.max(x0, 0), w - 1);
+      const xb = ulang ? (xa + 1) % w : Math.min(xa + 1, w - 1), yb = Math.min(y0 + 1, h - 1);
+      const p = (yy, xx) => data[(yy * w + xx) * 4 + ch];
+      return (p(y0, xa) * (1 - tx) + p(y0, xb) * tx) * (1 - ty) + (p(yb, xa) * (1 - tx) + p(yb, xb) * tx) * ty;
+    };
     for (let j = 0; j < n; j++) {
       const b = (2 * (j + 0.5)) / n - 1;
       for (let i = 0; i < n; i++) {
         const a = (2 * (i + 0.5)) / n - 1;
-        const [dx, dy, dz] = f(a, b);
-        const lon = Math.atan2(dy, dx) + geser;
-        let u = (lon / (2 * Math.PI)) % 1; if (u < 0) u += 1;
-        const v = Math.acos(dz / Math.hypot(dx, dy, dz)) / Math.PI;
-        // bilinear
-        const fx = u * w - 0.5, fy = Math.min(Math.max(v * h - 0.5, 0), h - 1);
-        const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
-        const xa = (x0 % w + w) % w, xb = (xa + 1) % w, yb = Math.min(y0 + 1, h - 1);
-        const p00 = (y0 * w + xa) * 4, p10 = (y0 * w + xb) * 4, p01 = (yb * w + xa) * 4, p11 = (yb * w + xb) * 4;
+        let [dx, dy, dz] = f(a, b);
+        const len = Math.hypot(dx, dy, dz); dx /= len; dy /= len; dz /= len;
+        const lon = Math.atan2(dx, dz) + Math.PI + geser;
+        const lat = Math.asin(Math.min(Math.max(dy, -1), 1));
+        let u = (lon / TAU + 0.5) % 1; if (u < 0) u += 1;
         const k = (j * n + i) * 4;
-        for (let ch = 0; ch < 3; ch++) {
-          o[k + ch] = (data[p00 + ch] * (1 - tx) + data[p10 + ch] * tx) * (1 - ty) + (data[p01 + ch] * (1 - tx) + data[p11 + ch] * tx) * ty;
+        if (!flat) {
+          for (let ch = 0; ch < 3; ch++) o[k + ch] = ambil(u * w, (0.5 - lat / Math.PI) * h, ch, true);
+        } else {
+          let m = ((u + 0.75) % 1) * 2; m = m < 1 ? m : 2 - m;  // cermin: ujung kiri & kanan selalu nyambung
+          const atas = halus(-0.06, 0.14, lat - band / 2), bawah = halus(-0.06, 0.14, -band / 2 - lat);
+          for (let ch = 0; ch < 3; ch++) {
+            let v = ambil(m * w, (0.5 - lat / band) * h, ch, false);
+            v = v * (1 - atas) + tepi.atas[ch] * atas;
+            v = v * (1 - bawah) + tepi.bawah[ch] * bawah;
+            o[k + ch] = v;
+          }
         }
         o[k + 3] = 255;
       }
@@ -226,10 +265,12 @@
     const geser = Number(el("putar").value) * Math.PI / 180;
     el("proses").disabled = el("zip").disabled = true;
     el("muka").innerHTML = ""; hasil = {};
+    const mode = modeDipakai();
+    const tepi = mode === "flat" ? { atas: warnaTepi(true), bawah: warnaTepi(false) } : null;
     for (const s of SISI) {
-      el("status").textContent = `Memproses sisi ${s}...`;
+      el("status").textContent = `Memproses sisi ${s} (${mode === "flat" ? "gambar biasa" : "panorama 360°"})...`;
       await new Promise(r => setTimeout(r, 20));  // kasih napas biar UI nggak beku
-      let c = bikinSisi(s, n, geser);
+      let c = bikinSisi(s, n, geser, mode, tepi);
       // rotasi bawaan Roblox + rotasi tambahan dari pilihan user (kalau masih ada yang kurang pas)
       const extra = s === "Up" ? Number(el("up-rot").value) : s === "Dn" ? Number(el("dn-rot").value) : 0;
       c = putarKanvas(c, ROBLOX[s].putar + extra);
