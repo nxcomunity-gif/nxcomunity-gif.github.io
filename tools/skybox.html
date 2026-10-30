@@ -244,7 +244,51 @@
 
   const halus = (a, b, t) => { const x = Math.min(Math.max((t - a) / (b - a), 0), 1); return x * x * (3 - 2 * x); };
 
-  function bikinSisi(sisi, n, geser, mode, baris, cermin) {
+  // Strip 360° kecil + prefix sum per baris -> blur horizontal cepat dekat kutub
+  // (garis-garis memusat di atas/bawah itu detail tepi gambar yang ketarik; diburamkan ke samping jadi gradasi halus)
+  function siapBlur(flat) {
+    const { w, h, data } = sumber;
+    const ws = Math.min(w, 512), hs = Math.max(2, Math.round(h * ws / w));
+    const W = flat ? ws * 2 : ws;  // gambar biasa: gambar + cerminannya biar strip-nya muter penuh 360°
+    const pre = new Float32Array((W + 1) * hs * 3);
+    for (let y = 0; y < hs; y++) {
+      const sy = Math.min(h - 1, Math.floor((y + 0.5) * h / hs));
+      let r = 0, g = 0, b = 0;
+      for (let q = 0; q < W; q++) {
+        let mx = q / ws;  // 0..1 (pano) atau 0..2 (gambar biasa, dilipat)
+        if (flat && mx > 1) mx = 2 - mx;
+        const sx = Math.min(w - 1, Math.floor(mx * (w - 1)));
+        const p = (sy * w + sx) * 4;
+        r += data[p]; g += data[p + 1]; b += data[p + 2];
+        const k = (y * (W + 1) + q + 1) * 3;
+        pre[k] = r; pre[k + 1] = g; pre[k + 2] = b;
+      }
+    }
+    return { W, hs, pre, ws };
+  }
+
+  // rata-rata warna strip di baris v (0..1), titik tengah t (0..1 keliling), lebar setengah rad (0..0.5 keliling)
+  function blurDi(B, t, v, rad, out) {
+    const { W, hs, pre } = B;
+    const y = Math.min(hs - 1, Math.max(0, Math.floor(v * hs)));
+    const base = y * (W + 1) * 3;
+    const r = Math.max(1, Math.round(rad * W));
+    const c = Math.floor(t * W);
+    const jumlah = (a) => {  // prefix dengan wrap: jumlah piksel [0, a)
+      const putaran = Math.floor(a / W), sisa = a - putaran * W;
+      const kT = base + W * 3, kS = base + sisa * 3;
+      for (let ch = 0; ch < 3; ch++) out[ch] = pre[kT + ch] * putaran + pre[kS + ch];
+      return out;
+    };
+    const a0 = c - r, a1 = c + r + 1;
+    const s1 = [...jumlah(a1)], s0 = [...jumlah(a0)];
+    const n = a1 - a0;
+    for (let ch = 0; ch < 3; ch++) out[ch] = (s1[ch] - s0[ch]) / n;
+    return out;
+  }
+
+  function bikinSisi(sisi, n, geser, mode, baris, cermin, B) {
+    const tmp = [0, 0, 0];
     const { w, h, data } = sumber;
     const c = document.createElement("canvas");
     c.width = c.height = n;
@@ -277,13 +321,22 @@
           px = u * w; py = (0.5 - lat / Math.PI) * h; ulang = true;
         } else {
           let m = ((u + 0.75) % 1) * 2; m = m < 1 ? m : 2 - m;  // cermin: ujung kiri & kanan selalu nyambung
-          px = m * w; py = barisTarik(lat, band, 0.9) * h; ulang = false;
+          px = m * w; py = barisTarik(lat, band, 0.6) * h; ulang = false;
         }
-        // dekat titik paling atas/bawah, campur sama warna rata-rata barisnya biar nggak jadi pusaran
-        const kutub = halus(Math.PI / 2 - 0.75, Math.PI / 2 - 0.05, Math.abs(lat));
+        // makin dekat titik paling atas/bawah: makin diburamkan ke samping (garis memusat jadi gradasi),
+        // paling ujung dicampur warna rata-rata barisnya
+        const al = Math.abs(lat);
+        const tBlur = halus(0.3, 0.95, al);
+        const kutub = halus(Math.PI / 2 - 0.3, Math.PI / 2 - 0.03, al);
         const by = Math.min(Math.max(Math.round(py - 0.5), 0), h - 1) * 3;
+        let bl = null;
+        if (tBlur > 0) {
+          const t = flat ? (u + 0.75) % 1 : u;  // posisi keliling di strip (gambar biasa: strip mulai dari lipatan)
+          bl = blurDi(B, t, py / h, 0.3 * halus(0.3, 1.4, al), tmp);
+        }
         for (let ch = 0; ch < 3; ch++) {
-          const v = ambil(px, py, ch, ulang);
+          let v = ambil(px, py, ch, ulang);
+          if (bl) v = v * (1 - tBlur) + bl[ch] * tBlur;
           o[k + ch] = v * (1 - kutub) + baris[by + ch] * kutub;
         }
         o[k + 3] = 255;
@@ -299,11 +352,11 @@
     el("proses").disabled = el("zip").disabled = true;
     el("muka").innerHTML = ""; hasil = {};
     const mode = modeDipakai();
-    const baris = warnaBaris(), cermin = el("bawah").value === "cermin";
+    const baris = warnaBaris(), cermin = el("bawah").value === "cermin", B = siapBlur(mode === "flat");
     for (const s of SISI) {
       el("status").textContent = `Memproses sisi ${s} (${mode === "flat" ? "gambar biasa" : "panorama 360°"})...`;
       await new Promise(r => setTimeout(r, 20));  // kasih napas biar UI nggak beku
-      let c = bikinSisi(s, n, geser, mode, baris, cermin);
+      let c = bikinSisi(s, n, geser, mode, baris, cermin, B);
       // rotasi bawaan Roblox + rotasi tambahan dari pilihan user (kalau masih ada yang kurang pas)
       const extra = s === "Up" ? Number(el("up-rot").value) : s === "Dn" ? Number(el("dn-rot").value) : 0;
       c = putarKanvas(c, ROBLOX[s].putar + extra);
