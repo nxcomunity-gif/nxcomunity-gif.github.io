@@ -85,7 +85,32 @@
 
     <div class="muka" id="muka"></div>
 
-    <p class="catatan">Cara pakai di Roblox Studio: upload 6 gambar lewat Asset Manager, terus di <code>Lighting</code> → <code>Sky</code> isi <code>SkyboxBk</code>, <code>SkyboxDn</code>, <code>SkyboxFt</code>, <code>SkyboxLf</code>, <code>SkyboxRt</code>, <code>SkyboxUp</code> sesuai nama file. Kalau langit atas/bawah kelihatan nyambungnya miring, ganti <b>Rotasi sisi Up / Dn</b> terus bikin ulang.</p>
+    <p class="catatan">Kalau langit atas/bawah kelihatan nyambungnya miring, ganti <b>Rotasi sisi Up / Dn</b> terus bikin ulang.</p>
+  </div>
+
+  <div class="panel" style="margin-top: 18px">
+    <span class="label">Langkah 2</span>
+    <h3>Jadiin file Sky Roblox (.rbxmx)</h3>
+    <p class="catatan" style="margin-top: 6px">File Roblox nggak bisa nyimpen gambar, cuma ID-nya. Jadi: upload 6 gambar tadi di Roblox Studio (<code>View</code> → <code>Asset Manager</code> → <code>Bulk Import</code>), klik kanan tiap gambar → <b>Copy Asset ID</b>, tempel di bawah. Boleh angka doang, <code>rbxassetid://…</code>, atau link Creator Store.</p>
+    <div class="opsi" style="margin-top: 4px">
+      <div><label class="f" for="id-Bk">SkyboxBk</label><input class="f id-sky" id="id-Bk" inputmode="numeric" placeholder="contoh 1234567890"></div>
+      <div><label class="f" for="id-Dn">SkyboxDn</label><input class="f id-sky" id="id-Dn" inputmode="numeric"></div>
+      <div><label class="f" for="id-Ft">SkyboxFt</label><input class="f id-sky" id="id-Ft" inputmode="numeric"></div>
+      <div><label class="f" for="id-Lf">SkyboxLf</label><input class="f id-sky" id="id-Lf" inputmode="numeric"></div>
+      <div><label class="f" for="id-Rt">SkyboxRt</label><input class="f id-sky" id="id-Rt" inputmode="numeric"></div>
+      <div><label class="f" for="id-Up">SkyboxUp</label><input class="f id-sky" id="id-Up" inputmode="numeric"></div>
+    </div>
+    <div class="opsi">
+      <div><label class="f" for="sky-nama">Nama Sky</label><input class="f" id="sky-nama" value="NX Sky"></div>
+      <div><label class="f" for="sky-bintang">Jumlah bintang (StarCount)</label><input class="f" id="sky-bintang" type="number" min="0" max="5000" value="3000"></div>
+      <div><label class="f" for="sky-langit">Matahari & bulan</label>
+        <select class="f" id="sky-langit"><option value="false" selected>Sembunyiin (biar gambar bersih)</option><option value="true">Tampilin</option></select></div>
+    </div>
+    <div class="aksi-baris">
+      <button class="btn utama" id="rbxm">Download file Sky (.rbxmx)</button>
+    </div>
+    <div id="status-rbxm" class="catatan"></div>
+    <p class="catatan">Cara pakai: drag file <code>.rbxmx</code> ke jendela Roblox Studio (atau klik kanan <code>Lighting</code> → <b>Insert from File</b>), terus pindahin Sky-nya ke dalam <code>Lighting</code>. Kalau di Lighting udah ada Sky lain, hapus yang lama.</p>
   </div>
 </main>
 
@@ -223,6 +248,47 @@
   drop.addEventListener("drop", e => muat(e.dataTransfer.files[0]));
   el("proses").addEventListener("click", proses);
   el("zip").addEventListener("click", zip);
+
+  // ── export Sky ke .rbxmx (format XML Roblox, bisa di-drag ke Studio) ──
+  const ambilId = s => (String(s).match(/\d{5,}/) || [""])[0];  // ambil angka ID dari angka / rbxassetid:// / link
+  const xml = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  function bikinRbxmx() {
+    const kosong = [];
+    const isi = ["Bk", "Dn", "Ft", "Lf", "Rt", "Up"].map(s => {
+      const id = ambilId(el("id-" + s).value);
+      if (!id) kosong.push("Skybox" + s);
+      return `\t\t\t<Content name="Skybox${s}"><url>rbxassetid://${id}</url></Content>`;
+    });
+    if (kosong.length) return { error: "ID belum diisi / nggak valid: " + kosong.join(", ") };
+    const bintang = Math.max(0, Math.min(5000, Math.round(Number(el("sky-bintang").value) || 0)));
+    const teks = `<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+\t<Item class="Sky" referent="RBX0">
+\t\t<Properties>
+\t\t\t<string name="Name">${xml(el("sky-nama").value.trim() || "NX Sky")}</string>
+${isi.join("\n")}
+\t\t\t<bool name="CelestialBodiesShown">${el("sky-langit").value}</bool>
+\t\t\t<int name="StarCount">${bintang}</int>
+\t\t</Properties>
+\t</Item>
+</roblox>
+`;
+    return { teks };
+  }
+  el("rbxm").addEventListener("click", () => {
+    const h = bikinRbxmx();
+    if (h.error) { el("status-rbxm").textContent = "❌ " + h.error; return; }
+    const n = (el("sky-nama").value.trim() || "NX Sky").replace(/[\\/:*?"<>|]/g, "_");
+    unduh(new Blob([h.teks], { type: "application/xml" }), `${n}.rbxmx`);
+    el("status-rbxm").textContent = "✅ File Sky ke-download. Drag ke Roblox Studio.";
+  });
+  // tempel 6 ID sekaligus (dipisah spasi / koma / baris baru) di kolom pertama -> otomatis kebagi urut Bk Dn Ft Lf Rt Up
+  el("id-Bk").addEventListener("paste", e => {
+    const ids = (e.clipboardData.getData("text").match(/\d{5,}/g) || []);
+    if (ids.length >= 6) {
+      e.preventDefault();
+      ["Bk", "Dn", "Ft", "Lf", "Rt", "Up"].forEach((s, i) => el("id-" + s).value = ids[i]);
+    }
+  });
 </script>
 </body>
 </html>
