@@ -17,3 +17,14 @@
   bg.className = "bg";
   document.body.prepend(bg);
 })();
+
+// catat kunjungan (cuma hitungan, buat owner liat statistik) -> gagal diem-diem aja kalau API lagi mati
+(function () {
+  try {
+    fetch("https://116-212-73-233.sslip.io/api/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ halaman: location.pathname }),
+    }).catch(() => {});
+  } catch {}
+})();

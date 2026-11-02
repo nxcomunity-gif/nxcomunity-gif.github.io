@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Statistik — NX COMMUNITY</title>
+<link rel="icon" href="../nx_logo.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+<style>
+  .grid-stat { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top: 18px; }
+  .kartu-stat { background: var(--kartu); border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius); padding: 20px; text-align: center; }
+  .kartu-stat b { display: block; font-size: 32px; font-weight: 800; color: var(--merah-terang); }
+  .kartu-stat span { color: var(--redup); font-size: 13px; }
+  .bar-rating { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .bar-rating .label { width: 30px; font-size: 13px; color: var(--redup); }
+  .bar-rating .luar { flex: 1; height: 10px; border-radius: 6px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .bar-rating .dalam { height: 100%; background: linear-gradient(90deg, var(--merah), var(--merah-terang)); }
+  .bar-rating .jml { width: 30px; font-size: 13px; color: var(--redup); text-align: right; }
+  #masukKunci { max-width: 420px; margin: 60px auto; text-align: center; }
+  #masukKunci input { width: 100%; margin-top: 10px; }
+</style>
+</head>
+<body class="sub">
+<nav class="nav">
+  <a class="merek" href="../index.html"><span class="bulat"></span>NX COMMUNITY</a>
+</nav>
+
+<main class="wadah">
+  <div class="kepala-tool">
+    <span class="label">Khusus Owner</span>
+    <h1>Statistik Web</h1>
+    <p>Jumlah pengunjung & rating skybox converter. Halaman ini nggak ke-index Google dan butuh key buat dibuka.</p>
+  </div>
+
+  <div class="panel" id="masukKunci">
+    <label class="f" for="kunci">Masukin key</label>
+    <input class="f" id="kunci" type="password" placeholder="key statistik">
+    <div class="aksi-baris" style="margin-top: 14px; justify-content: center">
+      <button class="btn utama" id="btnBuka">Buka</button>
+    </div>
+    <p class="catatan" id="pesanError"></p>
+  </div>
+
+  <div id="isiStat" hidden>
+    <div class="grid-stat">
+      <div class="kartu-stat"><b id="sTotal">-</b><span>Total Kunjungan</span></div>
+      <div class="kartu-stat"><b id="sHariIni">-</b><span>Hari Ini</span></div>
+      <div class="kartu-stat"><b id="sMinggu">-</b><span>7 Hari Terakhir</span></div>
+      <div class="kartu-stat"><b id="sRata">-</b><span>Rata-rata Rating (<span id="sJmlRating">0</span>)</span></div>
+    </div>
+
+    <div class="panel" style="margin-top: 18px">
+      <span class="label">Distribusi Rating</span>
+      <div id="barRating" style="margin-top: 10px"></div>
+    </div>
+
+    <div class="aksi-baris" style="margin-top: 18px">
+      <button class="btn" id="btnRefresh">🔄 Refresh</button>
+    </div>
+  </div>
+</main>
+
+<footer class="kaki"><div class="wadah">© NX COMMUNITY • <a href="../index.html">Beranda</a></div></footer>
+
+<script src="../api.js"></script>
+<script>
+  const API = "https://116-212-73-233.sslip.io/api";
+  const el = id => document.getElementById(id);
+
+  async function muatStat(key) {
+    el("pesanError").textContent = "";
+    try {
+      const r = await fetch(`${API}/stats?key=${encodeURIComponent(key)}`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "gagal");
+      el("masukKunci").hidden = true;
+      el("isiStat").hidden = false;
+      el("sTotal").textContent = d.total_kunjungan;
+      el("sHariIni").textContent = d.hari_ini;
+      el("sMinggu").textContent = d.minggu_ini;
+      el("sRata").textContent = d.rata_rata_rating.toFixed(1) + " ★";
+      el("sJmlRating").textContent = d.total_rating;
+      const maks = Math.max(1, ...Object.values(d.distribusi_rating));
+      el("barRating").innerHTML = [5, 4, 3, 2, 1].map(n => {
+        const jml = d.distribusi_rating[n] || 0;
+        const pct = Math.round((jml / maks) * 100);
+        return `<div class="bar-rating"><span class="label">${n}★</span><div class="luar"><div class="dalam" style="width:${pct}%"></div></div><span class="jml">${jml}</span></div>`;
+      }).join("");
+      try { sessionStorage.setItem("nx-stats-key", key); } catch {}
+    } catch (e) {
+      el("pesanError").textContent = "❌ " + e.message;
+    }
+  }
+
+  el("btnBuka").addEventListener("click", () => muatStat(el("kunci").value.trim()));
+  el("kunci").addEventListener("keydown", e => { if (e.key === "Enter") muatStat(el("kunci").value.trim()); });
+  el("btnRefresh").addEventListener("click", () => {
+    const k = sessionStorage.getItem("nx-stats-key") || el("kunci").value.trim();
+    muatStat(k);
+  });
+
+  (function () {
+    try {
+      const simpanan = sessionStorage.getItem("nx-stats-key");
+      if (simpanan) muatStat(simpanan);
+    } catch {}
+  })();
+</script>
+</body>
+</html>
