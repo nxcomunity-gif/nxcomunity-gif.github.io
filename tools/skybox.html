@@ -390,27 +390,34 @@
   // SEBELUM diproses jadi 6 sisi (ngaruh ke semua sisi sekaligus, jadi di mana pun sambungannya jatuh, aman).
   function jahitTepi() {
     const { w, h, data } = sumber;
-    // SENGAJA sempit (piksel tetap, bukan persen lebar gambar) -> cukup buat nutup garis tajam,
-    // tapi gak numpuk jadi "pita" warna campuran yang malah keliatan kalau tepi kiri-kanan beda cukup jauh.
-    const lebar = Math.max(3, Math.min(10, Math.round(w * 0.004)));
-    const kiriAsli = new Float32Array(lebar * h * 3), kananAsli = new Float32Array(lebar * h * 3);
+    // Lebar blend ADAPTIF per baris: diukur dulu seberapa beda piksel kiri vs kanan di baris itu.
+    // Baris yang nyaris sama (kebanyakan kasus) -> blend sempit, nyaris gak kerasa.
+    // Baris yang bedanya jauh (misal highlight awan nabrak di satu sisi doang) -> blend lebih lebar
+    // biar lompatannya ketutup mulus, nggak keliatan jadi "pita"/garis.
+    const lebarMaks = Math.max(10, Math.min(60, Math.round(w * 0.03)));
+    const kiriAsli = new Float32Array(lebarMaks * h * 3), kananAsli = new Float32Array(lebarMaks * h * 3);
     for (let y = 0; y < h; y++) {
-      for (let k = 0; k < lebar; k++) {
-        const pk = (y * w + k) * 4, pK = (y * w + (w - lebar + k)) * 4;
-        const o = (y * lebar + k) * 3;
+      for (let k = 0; k < lebarMaks; k++) {
+        const pk = (y * w + k) * 4, pK = (y * w + (w - lebarMaks + k)) * 4;
+        const o = (y * lebarMaks + k) * 3;
         kiriAsli[o] = data[pk]; kiriAsli[o + 1] = data[pk + 1]; kiriAsli[o + 2] = data[pk + 2];
         kananAsli[o] = data[pK]; kananAsli[o + 1] = data[pK + 1]; kananAsli[o + 2] = data[pK + 2];
       }
     }
     for (let y = 0; y < h; y++) {
+      const o0 = y * lebarMaks * 3;  // kolom paling pinggir (k=0) = persis di titik sambungan
+      const beda = Math.abs(kiriAsli[o0] - kananAsli[o0]) + Math.abs(kiriAsli[o0 + 1] - kananAsli[o0 + 1])
+                 + Math.abs(kiriAsli[o0 + 2] - kananAsli[o0 + 2]);
+      const lebar = Math.max(3, Math.min(lebarMaks, Math.round(3 + beda / 4)));
       for (let k = 0; k < lebar; k++) {
         const t = (k + 0.5) / lebar;                       // 0 (persis di sambungan) .. 1 (ujung dalam band)
         const bobot = 0.5 - 0.5 * Math.cos(Math.PI * t);    // ease: 0 di sambungan -> 1 di ujung band
-        const o = (y * lebar + k) * 3;
+        const oL = (y * lebarMaks + k) * 3;
+        const oR = (y * lebarMaks + (lebarMaks - lebar + k)) * 3;
         const pk = (y * w + k) * 4, pK = (y * w + (w - lebar + k)) * 4;
         for (let ch = 0; ch < 3; ch++) {
-          data[pk + ch] = kiriAsli[o + ch] * bobot + kananAsli[o + ch] * (1 - bobot);
-          data[pK + ch] = kananAsli[o + ch] * bobot + kiriAsli[o + ch] * (1 - bobot);
+          data[pk + ch] = kiriAsli[oL + ch] * bobot + kananAsli[oR + ch] * (1 - bobot);
+          data[pK + ch] = kananAsli[oR + ch] * bobot + kiriAsli[oL + ch] * (1 - bobot);
         }
       }
     }
