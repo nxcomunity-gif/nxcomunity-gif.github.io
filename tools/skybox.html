@@ -385,12 +385,42 @@
     return c;
   }
 
+  // Panorama AI/foto sering ujung kiri-kanannya nggak nyambung 100% mulus (walau diminta "seamless") ->
+  // keliatan sebagai garis vertikal di sisi tempat sambungannya jatuh. Di-crossfade dulu biar nyambung mulus
+  // SEBELUM diproses jadi 6 sisi (ngaruh ke semua sisi sekaligus, jadi di mana pun sambungannya jatuh, aman).
+  function jahitTepi(lebarFrac = 0.025) {
+    const { w, h, data } = sumber;
+    const lebar = Math.max(2, Math.round(w * lebarFrac));
+    const kiriAsli = new Float32Array(lebar * h * 3), kananAsli = new Float32Array(lebar * h * 3);
+    for (let y = 0; y < h; y++) {
+      for (let k = 0; k < lebar; k++) {
+        const pk = (y * w + k) * 4, pK = (y * w + (w - lebar + k)) * 4;
+        const o = (y * lebar + k) * 3;
+        kiriAsli[o] = data[pk]; kiriAsli[o + 1] = data[pk + 1]; kiriAsli[o + 2] = data[pk + 2];
+        kananAsli[o] = data[pK]; kananAsli[o + 1] = data[pK + 1]; kananAsli[o + 2] = data[pK + 2];
+      }
+    }
+    for (let y = 0; y < h; y++) {
+      for (let k = 0; k < lebar; k++) {
+        const t = (k + 0.5) / lebar;                       // 0 (persis di sambungan) .. 1 (ujung dalam band)
+        const bobot = 0.5 - 0.5 * Math.cos(Math.PI * t);    // ease: 0 di sambungan -> 1 di ujung band
+        const o = (y * lebar + k) * 3;
+        const pk = (y * w + k) * 4, pK = (y * w + (w - lebar + k)) * 4;
+        for (let ch = 0; ch < 3; ch++) {
+          data[pk + ch] = kiriAsli[o + ch] * bobot + kananAsli[o + ch] * (1 - bobot);
+          data[pK + ch] = kananAsli[o + ch] * bobot + kiriAsli[o + ch] * (1 - bobot);
+        }
+      }
+    }
+  }
+
   async function proses() {
     const n = Number(el("ukuran").value);
     const geser = Number(el("putar").value) * Math.PI / 180;
     el("proses").disabled = el("zip").disabled = true;
     el("muka").innerHTML = ""; hasil = {};
     const mode = modeDipakai();
+    if (mode === "pano") jahitTepi();
     const baris = warnaBaris(), cermin = el("bawah").value === "cermin", B = siapBlur(mode === "flat");
     for (const s of SISI) {
       el("status").textContent = `Memproses sisi ${s} (${mode === "flat" ? "gambar biasa" : "panorama 360°"})...`;
