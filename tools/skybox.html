@@ -59,6 +59,16 @@
     <p>Upload gambar panorama 360° (rasio 2:1, equirectangular), terus jadi 6 sisi skybox: Bk, Dn, Ft, Lf, Rt, Up. Semua diproses di HP/PC kamu, nggak di-upload ke mana-mana.</p>
   </div>
 
+  <div class="panel" style="margin-bottom: 18px">
+    <span class="label">Belum punya gambar?</span>
+    <h3>Generate panorama pake AI</h3>
+    <p class="catatan" style="margin-top: 6px">Copy prompt di bawah, ganti bagian <code>[Ganti Ini]</code> sama deskripsi pemandangan yang kamu mau (misal: <i>"anime style, langit sore oranye penuh awan"</i>), terus tempel ke ChatGPT / Gemini / Midjourney / tool AI gambar lain yang bisa bikin gambar. Download hasilnya (usahain rasio 2:1), baru upload di bawah.</p>
+    <textarea class="f" id="prompt-ai" readonly rows="4" style="margin-top: 10px; resize: vertical; font-size: 13px; line-height: 1.5">[Ganti Ini]. Seamless 360° equirectangular panorama, 2:1, straight horizon at the exact middle, main subject centered. Plain sky at top, soft matching haze at bottom, left and right edges match. Big soft shapes, smooth gradients, no tiny details, particles, grain, vignette, flare, text or watermark. GENERATE NOW</textarea>
+    <div class="aksi-baris" style="margin-top: 10px">
+      <button class="btn" id="copy-prompt">📋 Copy Prompt</button>
+    </div>
+  </div>
+
   <div class="panel">
     <label class="drop" id="drop" for="file">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.7-8.94A5.5 5.5 0 0 1 17.3 7.5 4.5 4.5 0 0 1 17 18H7Z"/><path d="M12 11v7m0-7-3 3m3-3 3 3"/></svg>
@@ -415,6 +425,19 @@
     unduh(await z.generateAsync({ type: "blob" }), `${nama}_skybox.zip`);
     el("status").textContent = "ZIP ke-download.";
   }
+
+  el("copy-prompt").addEventListener("click", async () => {
+    const btn = el("copy-prompt");
+    try {
+      await navigator.clipboard.writeText(el("prompt-ai").value);
+      btn.textContent = "✅ Ke-copy!";
+    } catch {
+      el("prompt-ai").select();
+      document.execCommand("copy");
+      btn.textContent = "✅ Ke-copy!";
+    }
+    setTimeout(() => { btn.textContent = "📋 Copy Prompt"; }, 2000);
+  });
 
   el("file").addEventListener("change", e => muat(e.target.files[0]));
   const drop = el("drop");
