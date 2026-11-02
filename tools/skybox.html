@@ -404,11 +404,28 @@
         kananAsli[o] = data[pK]; kananAsli[o + 1] = data[pK + 1]; kananAsli[o + 2] = data[pK + 2];
       }
     }
+    // Ukur beda tiap baris dulu, SEBELUM dipake nentuin lebar -> dihalusin dulu antar baris
+    // (moving average) biar lebar blend-nya nggak lompat-lompat baris-ke-baris. Kalau nggak
+    // dihalusin, tepi area blend jadi zig-zag/kotak-kotak keliatan (lebarnya beda2 tiap baris).
+    const bedaMentah = new Float32Array(h);
     for (let y = 0; y < h; y++) {
-      const o0 = y * lebarMaks * 3;  // kolom paling pinggir (k=0) = persis di titik sambungan
-      const beda = Math.abs(kiriAsli[o0] - kananAsli[o0]) + Math.abs(kiriAsli[o0 + 1] - kananAsli[o0 + 1])
-                 + Math.abs(kiriAsli[o0 + 2] - kananAsli[o0 + 2]);
-      const lebar = Math.max(3, Math.min(lebarMaks, Math.round(3 + beda / 4)));
+      const o0 = y * lebarMaks * 3;
+      bedaMentah[y] = Math.abs(kiriAsli[o0] - kananAsli[o0]) + Math.abs(kiriAsli[o0 + 1] - kananAsli[o0 + 1])
+                    + Math.abs(kiriAsli[o0 + 2] - kananAsli[o0 + 2]);
+    }
+    const radiusHalus = Math.max(3, Math.round(h * 0.01));
+    const bedaHalus = new Float32Array(h);
+    for (let y = 0; y < h; y++) {
+      let s = 0, n = 0;
+      for (let dy = -radiusHalus; dy <= radiusHalus; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        s += bedaMentah[yy]; n++;
+      }
+      bedaHalus[y] = s / n;
+    }
+    for (let y = 0; y < h; y++) {
+      const lebar = Math.max(3, Math.min(lebarMaks, Math.round(3 + bedaHalus[y] / 4)));
       for (let k = 0; k < lebar; k++) {
         const t = (k + 0.5) / lebar;                       // 0 (persis di sambungan) .. 1 (ujung dalam band)
         const bobot = 0.5 - 0.5 * Math.cos(Math.PI * t);    // ease: 0 di sambungan -> 1 di ujung band
