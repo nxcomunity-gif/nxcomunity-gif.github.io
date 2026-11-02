@@ -314,32 +314,6 @@
     return out;
   }
 
-  // Up/Dn: tengah kanvas = persis kutub langit, proyeksinya bikin motif "kincir" (pinwheel) di situ.
-  // Blur per-baris di bikinSisi() udah ngurangin, tapi buat gambar kompleks (foto asli) masih keliatan.
-  // Jadi di sini tambahin blur radial BENERAN (bukan rata-rata), makin kuat ke tengah, makin tipis ke tepi.
-  function blurTengah(c) {
-    const n = c.width;
-    const kabur = document.createElement("canvas");
-    kabur.width = kabur.height = n;
-    const kx = kabur.getContext("2d");
-    kx.filter = `blur(${Math.max(2, Math.round(n * 0.045))}px)`;
-    kx.drawImage(c, 0, 0);
-    kx.filter = "none";
-    kx.globalCompositeOperation = "destination-in";
-    const g = kx.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n * 0.5);
-    g.addColorStop(0, "rgba(255,255,255,1)");
-    g.addColorStop(0.35, "rgba(255,255,255,1)");
-    g.addColorStop(1, "rgba(255,255,255,0)");
-    kx.fillStyle = g;
-    kx.fillRect(0, 0, n, n);
-    const out = document.createElement("canvas");
-    out.width = out.height = n;
-    const ox = out.getContext("2d");
-    ox.drawImage(c, 0, 0);
-    ox.drawImage(kabur, 0, 0);
-    return out;
-  }
-
   function bikinSisi(sisi, n, geser, mode, baris, cermin, B) {
     const tmp = [0, 0, 0];
     const { w, h, data } = sumber;
@@ -376,16 +350,18 @@
           let m = ((u + 0.75) % 1) * 2; m = m < 1 ? m : 2 - m;  // cermin: ujung kiri & kanan selalu nyambung
           px = m * w; py = barisTarik(lat, band, 0.6) * h; ulang = false;
         }
-        // makin dekat titik paling atas/bawah: makin diburamkan ke samping (garis memusat jadi gradasi),
-        // paling ujung dicampur warna rata-rata barisnya
+        // CUMA beberapa derajat di sekitar titik paling atas/bawah (pusat sisi Up/Dn) yang beneran
+        // "aliasing" (banyak longitude numpuk di area kecil -> motif kincir). Di luar situ sampling
+        // biasa udah presisi & tajam, jadi radius/kekuatan blur-nya diperketat biar cuma nutup
+        // area itu doang, detail (misal matahari) di luar area itu tetep tajam kayak sumbernya.
         const al = Math.abs(lat);
-        const tBlur = halus(0.3, 0.95, al);
-        const kutub = halus(Math.PI / 2 - 0.3, Math.PI / 2 - 0.03, al);
+        const tBlur = halus(1.40, 1.566, al);
+        const kutub = halus(1.50, 1.566, al);
         const by = Math.min(Math.max(Math.round(py - 0.5), 0), h - 1) * 3;
         let bl = null;
         if (tBlur > 0) {
           const t = flat ? (u + 0.75) % 1 : u;  // posisi keliling di strip (gambar biasa: strip mulai dari lipatan)
-          bl = blurDi(B, t, py / h, 0.3 * halus(0.3, 1.4, al), tmp);
+          bl = blurDi(B, t, py / h, 0.3 * halus(1.30, 1.566, al), tmp);
         }
         for (let ch = 0; ch < 3; ch++) {
           let v = ambil(px, py, ch, ulang);
@@ -410,7 +386,6 @@
       el("status").textContent = `Memproses sisi ${s} (${mode === "flat" ? "gambar biasa" : "panorama 360°"})...`;
       await new Promise(r => setTimeout(r, 20));  // kasih napas biar UI nggak beku
       let c = bikinSisi(s, n, geser, mode, baris, cermin, B);
-      if (s === "Up" || s === "Dn") c = blurTengah(c);
       // rotasi bawaan Roblox + rotasi tambahan dari pilihan user (kalau masih ada yang kurang pas)
       const extra = s === "Up" ? Number(el("up-rot").value) : s === "Dn" ? Number(el("dn-rot").value) : 0;
       c = putarKanvas(c, ROBLOX[s].putar + extra);
