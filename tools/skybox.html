@@ -386,55 +386,37 @@
   }
 
   // Panorama AI/foto sering ujung kiri-kanannya nggak nyambung 100% mulus (walau diminta "seamless") ->
-  // keliatan sebagai garis vertikal di sisi tempat sambungannya jatuh. Di-crossfade dulu biar nyambung mulus
-  // SEBELUM diproses jadi 6 sisi (ngaruh ke semua sisi sekaligus, jadi di mana pun sambungannya jatuh, aman).
+  // keliatan sebagai garis di sisi tempat sambungannya jatuh. Nyampur 2 sisi yang beda (crossfade) nggak
+  // pernah bisa bener2 mulus kalau BENTUK-nya (bukan cuma warnanya) beda -> hasilnya masih keliatan dobel.
+  // Solusi yang beneran 100% mulus: CERMININ 1 sisi doang (ambil dari sisi kanan, jauh dari tepi yang
+  // bermasalah) dan tempelin simetris nutupin sambungan. Gambar yang dicerminin PASTI nyambung sama
+  // dirinya sendiri (matematis gak mungkin ada lompatan), gak ada lagi dobel-exposure dari 2 pola beda.
   function jahitTepi() {
     const { w, h, data } = sumber;
-    // Lebar blend ADAPTIF per baris: diukur dulu seberapa beda piksel kiri vs kanan di baris itu.
-    // Baris yang nyaris sama (kebanyakan kasus) -> blend sempit, nyaris gak kerasa.
-    // Baris yang bedanya jauh (misal highlight awan nabrak di satu sisi doang) -> blend lebih lebar
-    // biar lompatannya ketutup mulus, nggak keliatan jadi "pita"/garis.
-    const lebarMaks = Math.max(10, Math.min(60, Math.round(w * 0.03)));
-    const kiriAsli = new Float32Array(lebarMaks * h * 3), kananAsli = new Float32Array(lebarMaks * h * 3);
+    const L = Math.max(10, Math.min(80, Math.round(w * 0.018)));  // lebar area cermin tiap sisi sambungan
+    const sumberBersih = new Float32Array(L * h * 3);  // isi aman diambil dari (w-2L .. w-L), jauh dari tepi
+    const asliKanan = new Float32Array(L * h * 3), asliKiri = new Float32Array(L * h * 3);
     for (let y = 0; y < h; y++) {
-      for (let k = 0; k < lebarMaks; k++) {
-        const pk = (y * w + k) * 4, pK = (y * w + (w - lebarMaks + k)) * 4;
-        const o = (y * lebarMaks + k) * 3;
-        kiriAsli[o] = data[pk]; kiriAsli[o + 1] = data[pk + 1]; kiriAsli[o + 2] = data[pk + 2];
-        kananAsli[o] = data[pK]; kananAsli[o + 1] = data[pK + 1]; kananAsli[o + 2] = data[pK + 2];
+      for (let j = 0; j < L; j++) {
+        const sx = w - 2 * L + j;
+        const p = (y * w + sx) * 4, o = (y * L + j) * 3;
+        sumberBersih[o] = data[p]; sumberBersih[o + 1] = data[p + 1]; sumberBersih[o + 2] = data[p + 2];
+        const pR = (y * w + (w - 1 - j)) * 4, pL = (y * w + j) * 4;
+        asliKanan[o] = data[pR]; asliKanan[o + 1] = data[pR + 1]; asliKanan[o + 2] = data[pR + 2];
+        asliKiri[o] = data[pL]; asliKiri[o + 1] = data[pL + 1]; asliKiri[o + 2] = data[pL + 2];
       }
     }
-    // Ukur beda tiap baris dulu, SEBELUM dipake nentuin lebar -> dihalusin dulu antar baris
-    // (moving average) biar lebar blend-nya nggak lompat-lompat baris-ke-baris. Kalau nggak
-    // dihalusin, tepi area blend jadi zig-zag/kotak-kotak keliatan (lebarnya beda2 tiap baris).
-    const bedaMentah = new Float32Array(h);
     for (let y = 0; y < h; y++) {
-      const o0 = y * lebarMaks * 3;
-      bedaMentah[y] = Math.abs(kiriAsli[o0] - kananAsli[o0]) + Math.abs(kiriAsli[o0 + 1] - kananAsli[o0 + 1])
-                    + Math.abs(kiriAsli[o0 + 2] - kananAsli[o0 + 2]);
-    }
-    const radiusHalus = Math.max(3, Math.round(h * 0.01));
-    const bedaHalus = new Float32Array(h);
-    for (let y = 0; y < h; y++) {
-      let s = 0, n = 0;
-      for (let dy = -radiusHalus; dy <= radiusHalus; dy++) {
-        const yy = y + dy;
-        if (yy < 0 || yy >= h) continue;
-        s += bedaMentah[yy]; n++;
-      }
-      bedaHalus[y] = s / n;
-    }
-    for (let y = 0; y < h; y++) {
-      const lebar = Math.max(3, Math.min(lebarMaks, Math.round(3 + bedaHalus[y] / 4)));
-      for (let k = 0; k < lebar; k++) {
-        const t = (k + 0.5) / lebar;                       // 0 (persis di sambungan) .. 1 (ujung dalam band)
-        const bobot = 0.5 - 0.5 * Math.cos(Math.PI * t);    // ease: 0 di sambungan -> 1 di ujung band
-        const oL = (y * lebarMaks + k) * 3;
-        const oR = (y * lebarMaks + (lebarMaks - lebar + k)) * 3;
-        const pk = (y * w + k) * 4, pK = (y * w + (w - lebar + k)) * 4;
+      for (let j = 0; j < L; j++) {
+        const o = (y * L + j) * 3;
+        // j=0 (persis di sambungan) -> 100% cermin (jamin nyambung sempurna).
+        // j=L-1 (ujung luar area) -> 100% konten asli (nyambung mulus ke gambar yang nggak disentuh).
+        const bobotAsli = j / (L - 1);
+        const colKanan = w - 1 - j, colKiri = j;
+        const pR = (y * w + colKanan) * 4, pL = (y * w + colKiri) * 4;
         for (let ch = 0; ch < 3; ch++) {
-          data[pk + ch] = kiriAsli[oL + ch] * bobot + kananAsli[oR + ch] * (1 - bobot);
-          data[pK + ch] = kananAsli[oR + ch] * bobot + kiriAsli[oL + ch] * (1 - bobot);
+          data[pR + ch] = sumberBersih[o + ch] * (1 - bobotAsli) + asliKanan[o + ch] * bobotAsli;
+          data[pL + ch] = sumberBersih[o + ch] * (1 - bobotAsli) + asliKiri[o + ch] * bobotAsli;
         }
       }
     }
