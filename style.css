@@ -38,6 +38,13 @@ img { max-width: 100%; display: block; }
   animation: naik linear infinite; opacity: 0; }
 @keyframes naik { 10% { opacity: .9; } 100% { transform: translateY(-105vh) translateX(var(--geser)); opacity: 0; } }
 
+/* pita donasi (di atas navbar) */
+.pita-donasi { text-align: center; padding: 8px 16px;
+  font-size: 13px; font-weight: 600; color: #fff; line-height: 1.4;
+  background: linear-gradient(90deg, var(--merah-gelap), var(--merah)); }
+.pita-donasi a { color: #fff; text-decoration: underline; font-weight: 800; }
+.pita-donasi a:hover { text-decoration: none; }
+
 /* navbar */
 .nav { position: sticky; top: 0; z-index: 50;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
