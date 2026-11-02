@@ -314,6 +314,32 @@
     return out;
   }
 
+  // Up/Dn: tengah kanvas = persis kutub langit, proyeksinya bikin motif "kincir" (pinwheel) di situ.
+  // Blur per-baris di bikinSisi() udah ngurangin, tapi buat gambar kompleks (foto asli) masih keliatan.
+  // Jadi di sini tambahin blur radial BENERAN (bukan rata-rata), makin kuat ke tengah, makin tipis ke tepi.
+  function blurTengah(c) {
+    const n = c.width;
+    const kabur = document.createElement("canvas");
+    kabur.width = kabur.height = n;
+    const kx = kabur.getContext("2d");
+    kx.filter = `blur(${Math.max(2, Math.round(n * 0.045))}px)`;
+    kx.drawImage(c, 0, 0);
+    kx.filter = "none";
+    kx.globalCompositeOperation = "destination-in";
+    const g = kx.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n * 0.5);
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.35, "rgba(255,255,255,1)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    kx.fillStyle = g;
+    kx.fillRect(0, 0, n, n);
+    const out = document.createElement("canvas");
+    out.width = out.height = n;
+    const ox = out.getContext("2d");
+    ox.drawImage(c, 0, 0);
+    ox.drawImage(kabur, 0, 0);
+    return out;
+  }
+
   function bikinSisi(sisi, n, geser, mode, baris, cermin, B) {
     const tmp = [0, 0, 0];
     const { w, h, data } = sumber;
@@ -384,6 +410,7 @@
       el("status").textContent = `Memproses sisi ${s} (${mode === "flat" ? "gambar biasa" : "panorama 360°"})...`;
       await new Promise(r => setTimeout(r, 20));  // kasih napas biar UI nggak beku
       let c = bikinSisi(s, n, geser, mode, baris, cermin, B);
+      if (s === "Up" || s === "Dn") c = blurTengah(c);
       // rotasi bawaan Roblox + rotasi tambahan dari pilihan user (kalau masih ada yang kurang pas)
       const extra = s === "Up" ? Number(el("up-rot").value) : s === "Dn" ? Number(el("dn-rot").value) : 0;
       c = putarKanvas(c, ROBLOX[s].putar + extra);
