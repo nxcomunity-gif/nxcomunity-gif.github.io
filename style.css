@@ -83,6 +83,7 @@ a.kartu:hover { transform: translateY(-3px); border-color: var(--garis); box-sha
 
 /* panel tool */
 .panel { background: var(--kartu); border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius); padding: 22px; }
+label.drop { display: block; width: 100%; }
 label.f { display: block; font-size: 13px; color: var(--redup); margin: 14px 0 6px; }
 input.f, select.f, textarea.f { width: 100%; padding: 12px 14px; border-radius: 10px; font: inherit; font-size: 15px;
   color: var(--teks); background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.12); }
