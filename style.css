@@ -29,7 +29,7 @@ img { max-width: 100%; display: block; }
     radial-gradient(ellipse at 50% 100%, rgba(110,10,16,.45), transparent 65%),
     var(--bg); }
 .bg::before { content: ""; position: absolute; inset: -10%;
-  background: url("nx_logo.webp") center / min(220vw, 1800px) contain no-repeat;
+  background: url("nx_bg.webp") center / min(220vw, 1800px) contain no-repeat;
   opacity: .08; filter: blur(1px); animation: napas 8s ease-in-out infinite; }
 @keyframes napas { 50% { transform: scale(1.05); opacity: .13; } }
 .api { position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
