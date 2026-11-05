@@ -30,6 +30,17 @@
   .catatan { color: var(--redup); font-size: 13px; margin-top: 14px; }
   input[type=range] { width: 100%; accent-color: var(--merah); }
   .nilai { float: right; color: var(--teks); font-weight: 600; }
+  .dari-link { display: flex; gap: 10px; }
+  .dari-link input { flex: 1; min-width: 0; }
+  @media (max-width: 560px) { .dari-link { flex-direction: column; } }
+  #status-link { color: var(--redup); font-size: 13.5px; margin-top: 10px; min-height: 1.4em; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  #status-link.error { color: #ff6b72; }
+  #status-link a { color: var(--merah-terang); font-weight: 700; }
+  .muter { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--merah); border-radius: 50%;
+    animation: muter .8s linear infinite; flex: none; }
+  @keyframes muter { to { transform: rotate(360deg); } }
+  .atau { display: flex; align-items: center; gap: 12px; color: var(--redup); font-size: 12px; letter-spacing: 2px; margin: 14px 0; }
+  .atau::before, .atau::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.1); }
 </style>
 </head>
 <body class="sub">
@@ -43,10 +54,17 @@
   <div class="kepala-tool">
     <span class="label">Audio</span>
     <h1>Audio Converter</h1>
-    <p>Siapin file audio <b>milik kamu</b> (lagu bikinan sendiri, rekaman, atau musik bebas royalti) biar siap di-upload ke Roblox: convert ke MP3, potong, atur volume & kecepatan, dan cek syarat upload. Semua diproses di HP/PC kamu, nggak di-upload ke mana-mana.</p>
+    <p>Ambil audio dari link <b>YouTube / TikTok</b> atau pakai file kamu sendiri, terus dengerin, potong, atur volume & kecepatan, convert ke MP3, dan cek syarat upload Roblox. File kamu diproses di HP/PC kamu sendiri.</p>
   </div>
 
   <div class="panel">
+    <form class="dari-link" id="form-link">
+      <input class="f" id="link" type="url" inputmode="url" autocomplete="off" required
+             placeholder="Tempel link YouTube / TikTok..." aria-label="Link YouTube atau TikTok">
+      <button class="btn utama" id="ambil" type="submit">Ambil audio</button>
+    </form>
+    <div id="status-link" role="status" aria-live="polite"></div>
+    <div class="atau">ATAU</div>
     <label class="drop" id="drop" for="file">
       <b>Klik atau taruh file audio di sini</b>
       <span>MP3 / WAV / OGG / M4A / FLAC (yang bisa diputar browser kamu)</span>
@@ -88,7 +106,8 @@
 
     <p class="catatan">Klik di gelombang buat atur titik <b>mulai</b>, klik kanan (atau tahan) buat titik <b>selesai</b>.
       Syarat upload audio Roblox yang dicek di sini: format MP3, durasi maks <b>7 menit</b>, ukuran maks <b>20 MB</b>.
-      Upload cuma audio yang memang hak kamu, audio berhak cipta milik orang lain bakal dihapus Roblox.</p>
+      Upload cuma audio yang memang hak kamu, audio berhak cipta milik orang lain bakal dihapus Roblox.<br>
+      Audio dari link disimpan sementara di server NX (±20 menit) terus otomatis dihapus. Maks 10 menit per video.</p>
   </div>
 </main>
 
@@ -280,6 +299,49 @@
   drop.addEventListener("drop", e => muat(e.dataTransfer.files[0]));
   ["mulai", "selesai", "bitrate", "kanal", "volume", "fadein", "fadeout", "kecepatan", "normal"].forEach(k => el(k).addEventListener("input", perbarui));
   el("convert").addEventListener("click", convert);
+
+  // ambil audio dari link YouTube / TikTok lewat server NX, terus masuk ke converter di atas
+  const API = "https://116-212-73-233.sslip.io";
+  function statusLink(teks, jenis, html) {
+    const s = el("status-link");
+    s.className = jenis === "error" ? "error" : "";
+    s.innerHTML = jenis === "muat" ? '<span class="muter"></span>' : "";
+    s.append(document.createTextNode(teks || ""));
+    if (html) s.insertAdjacentHTML("beforeend", html);
+  }
+  el("form-link").addEventListener("submit", async e => {
+    e.preventDefault();
+    const url = el("link").value.trim();
+    if (!url) return;
+    el("ambil").disabled = true;
+    statusLink("Lagi ambil audionya dari link... (bisa 10-40 detik)", "muat");
+    try {
+      const r = await fetch(API + "/api/player/ekstrak", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+      });
+      let d = {};
+      try { d = await r.json(); } catch {}
+      if (!r.ok) throw new Error(d.error || "Gagal ambil audio (" + r.status + ").");
+      statusLink("Download audionya ke browser...", "muat");
+      const f = await fetch(API + d.url);
+      if (!f.ok) throw new Error("Audio gagal didownload, coba lagi.");
+      const blob = await f.blob();
+      const ext = (blob.type.includes("mpeg") ? ".mp3" : blob.type.includes("webm") ? ".webm" : blob.type.includes("video") ? ".mp4" : ".m4a");
+      const judul = (d.judul || "audio").replace(/[\/:*?"<>|]+/g, " ").trim().slice(0, 80) || "audio";
+      await muat(new File([blob], judul + ext, { type: blob.type }));
+      if (!buffer) throw new Error("Audio dari link ini nggak bisa dibaca browser kamu. Coba pakai Chrome.");
+      const asli = API + d.url + "?dl=1";
+      statusLink("✅ " + (d.sumber || "") + ": " + (d.judul || "audio") + " — udah masuk converter di bawah. ", "",
+        '<a href="' + asli + '">Download file asli (.m4a)</a>');
+      el("gelombang").scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (err) {
+      statusLink(err.message === "Failed to fetch" ? "Server NX lagi gak bisa dihubungi, coba lagi nanti." : err.message, "error");
+    } finally {
+      el("ambil").disabled = false;
+    }
+  });
+  const awal = new URLSearchParams(location.search).get("url");
+  if (awal) el("link").value = awal;
   el("putar").addEventListener("click", putar);
 </script>
 </body>
