@@ -109,6 +109,9 @@
         <button class="tbl besar" id="main" type="button" aria-label="Putar / jeda"><span class="ms" id="ikon-main">play_arrow</span></button>
         <button class="tbl" id="maju" type="button" aria-label="Maju 10 detik"><span class="ms">forward_10</span></button>
       </div>
+      <div style="display:flex;justify-content:center;margin-top:16px">
+        <a class="btn" id="unduh" href="#" download><span class="ms">download</span>Download audio</a>
+      </div>
 
       <div class="atur">
         <div class="kotak">
@@ -133,7 +136,7 @@
 
       <p class="catatan">
         Pintasan: <kbd>Spasi</kbd> putar/jeda • <kbd>←</kbd><kbd>→</kbd> 5 detik • <kbd>[</kbd><kbd>]</kbd> kecepatan −/+.<br>
-        Audio cuma disimpan sementara di server (±20 menit) buat diputer di sini, terus otomatis dihapus.
+        Download = file audio asli (format .m4a, kualitas asli, kecepatan normal). Audio cuma disimpan sementara di server (±20 menit), terus otomatis dihapus, jadi download sebelum kedaluwarsa. Pakai buat kebutuhan pribadi ya, hormati hak cipta pemilik lagunya.
         Maksimal 10 menit per video.
       </p>
     </div>
@@ -183,6 +186,7 @@ $("form").addEventListener("submit", async (e) => {
     audio.pause();
     siap = false;
     audio.src = API + d.url;
+    $("unduh").href = API + d.url + "?dl=1";
     audio.load();
     $("judul").textContent = d.judul || "Audio";
     $("sumber").textContent = d.sumber || "";
