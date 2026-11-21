@@ -1,0 +1,185 @@
+<title>NX Premium Store</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: sticky header → hero → grid produk → cara order → kontak. Dark-committed premium look. */
+  :root{
+    --bg:#0b0b0e; --panel:#141419; --panel2:#1c1c23; --line:#2a2a33;
+    --fg:#f4f4f6; --muted:#a6a6b2; --red:#e11c28; --red-soft:#ff3b47;
+    --gold:#f5c44a; --green:#22c55e;
+    --f-disp:"Space Grotesk",system-ui,sans-serif;
+    --f-body:"Inter",system-ui,sans-serif;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:var(--f-body);line-height:1.55;margin:0}
+  .wrap{max-width:1080px;margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left,0px));
+    padding-right:max(16px,env(safe-area-inset-right,0px))}
+  a{color:inherit}
+  h1,h2,h3{font-family:var(--f-disp);text-wrap:balance;margin:0;line-height:1.1}
+
+  /* top bar painted behind safe area */
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:20;background:#060608}
+  header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;
+    background:rgba(6,6,8,.9);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .bar .wrap{display:flex;align-items:center;justify-content:space-between;padding-block:12px;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--f-disp);font-weight:700;letter-spacing:.5px}
+  .logo{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--red),#7a0e14);color:#fff;font-weight:800;font-size:15px;box-shadow:0 0 18px rgba(225,28,40,.5)}
+  .bar .cta{font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;background:var(--red);color:#fff;text-decoration:none;white-space:nowrap}
+
+  /* hero */
+  .hero{padding-block:54px 34px;text-align:center;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;inset:-40% 0 auto;height:300px;z-index:-1;
+    background:radial-gradient(60% 100% at 50% 0,rgba(225,28,40,.28),transparent 70%)}
+  .pill{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--gold);
+    border:1px solid rgba(245,196,74,.35);background:rgba(245,196,74,.08);padding:5px 12px;border-radius:999px;margin-bottom:18px}
+  .hero h1{font-size:clamp(34px,7vw,58px);font-weight:700}
+  .hero h1 span{color:var(--red-soft)}
+  .hero p{color:var(--muted);max-width:46ch;margin:16px auto 0;font-size:clamp(15px,2.4vw,17px)}
+  .hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+  .btn{font-family:var(--f-disp);font-weight:600;font-size:15px;text-decoration:none;padding:13px 22px;border-radius:12px;border:1px solid transparent;cursor:pointer}
+  .btn-main{background:var(--red);color:#fff;box-shadow:0 8px 24px rgba(225,28,40,.35)}
+  .btn-ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+
+  /* trust row */
+  .trust{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:34px}
+  .trust div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 12px;text-align:center}
+  .trust b{display:block;font-family:var(--f-disp);font-size:15px}
+  .trust small{color:var(--muted);font-size:12px}
+
+  /* sections */
+  section{padding-block:30px}
+  .head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:20px}
+  .head h2{font-size:clamp(22px,4vw,30px)}
+  .head small{color:var(--muted);font-size:13px}
+
+  /* produk grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px;position:relative}
+  .card.hot{border-color:rgba(225,28,40,.5)}
+  .tag{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+    color:#fff;background:var(--red);padding:4px 8px;border-radius:999px}
+  .ico{width:46px;height:46px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;font-size:22px}
+  .card h3{font-size:18px}
+  .card .desc{color:var(--muted);font-size:13px;flex:1}
+  .price{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+  .price b{font-family:var(--f-disp);font-size:22px;color:var(--gold)}
+  .price b.chat{font-size:14px;color:var(--muted);font-weight:600}
+  .price s{color:var(--muted);font-size:13px}
+  .card .order{margin-top:6px;text-align:center;font-weight:600;font-size:14px;padding:11px;border-radius:10px;background:var(--red);color:#fff;border:0;cursor:pointer;text-decoration:none;display:block}
+  .card .order:hover{background:var(--red-soft)}
+
+  /* cara order */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+  .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .step .n{font-family:var(--f-disp);font-weight:700;color:var(--red-soft);font-size:14px;margin-bottom:8px}
+  .step h3{font-size:16px;margin-bottom:6px}
+  .step p{color:var(--muted);font-size:13px;margin:0}
+
+  /* kontak */
+  .contact{background:linear-gradient(135deg,var(--panel),#241013);border:1px solid var(--line);border-radius:20px;padding:30px;text-align:center}
+  .contact h2{font-size:clamp(22px,4vw,30px);margin-bottom:10px}
+  .contact p{color:var(--muted);margin:0 auto 20px;max-width:40ch}
+  .contact .btn-main{display:inline-block}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding-block:28px 40px}
+
+  @media(max-width:520px){.trust{grid-template-columns:1fr}}
+</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand"><span class="logo">NX</span> NX PREMIUM STORE</div>
+    <a class="cta" href="#produk">Lihat Produk</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <section class="hero">
+      <span class="pill">⚡ Proses Cepat • Garansi • Admin Responsif</span>
+      <h1>Aplikasi Premium<br>Harga <span>Hemat</span></h1>
+      <p>Langganan & akun premium resmi untuk kebutuhan editing dan kreator. Pesan tinggal chat, prosesnya cepat, langsung siap pakai.</p>
+      <div class="hero-btns">
+        <a class="btn btn-main" href="#produk">Belanja Sekarang</a>
+        <a class="btn btn-ghost" href="#cara">Cara Order</a>
+      </div>
+
+      <div class="trust">
+        <div><b>⚡ Cepat</b><small>Proses rata-rata &lt; 10 menit</small></div>
+        <div><b>🛡️ Garansi</b><small>Ada garansi sesuai produk</small></div>
+        <div><b>💬 Responsif</b><small>Admin standby tiap hari</small></div>
+      </div>
+    </section>
+
+    <section id="produk">
+      <div class="head">
+        <h2>Daftar Produk</h2>
+        <small>Harga bisa berubah — konfirmasi saat order</small>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <section id="cara">
+      <div class="head"><h2>Cara Order</h2></div>
+      <div class="steps">
+        <div class="step"><div class="n">01</div><h3>Pilih produk</h3><p>Klik tombol <b>Order</b> di produk yang kamu mau.</p></div>
+        <div class="step"><div class="n">02</div><h3>Chat admin</h3><p>Otomatis kebuka WhatsApp dengan pesan produknya. Tinggal kirim.</p></div>
+        <div class="step"><div class="n">03</div><h3>Bayar</h3><p>Admin kasih info pembayaran (QRIS / e-wallet / transfer).</p></div>
+        <div class="step"><div class="n">04</div><h3>Terima akun</h3><p>Produk dikirim + cara pakainya. Selesai, siap dipakai!</p></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="contact">
+        <h2>Mau pesan atau nanya dulu?</h2>
+        <p>Admin NX siap bantu. Chat langsung, dijawab cepat.</p>
+        <a class="btn btn-main" id="waMain" href="#" target="_blank" rel="noopener">💬 Chat Admin WhatsApp</a>
+      </div>
+    </section>
+  </div>
+
+  <footer class="wrap">© <span id="yr"></span> NX COMMUNITY · NX Premium Store</footer>
+</main>
+
+<script>
+  // ====== EDIT DI SINI ======
+  var WA = "6285606357108";        // nomor WhatsApp admin (format 62..., tanpa + / spasi)
+  var TOKO = "NX Premium Store";
+
+  // Daftar produk — tinggal tambah/ubah. "harga" boleh angka (cth "Rp30.000") atau biarin "Chat" biar harga ditanya pas order.
+  var PRODUK = [
+    {ico:"🎬", nama:"CapCut Pro", desc:"Semua fitur pro: no watermark, resolusi tinggi, efek & template premium.", harga:"Chat", tag:"Terlaris", hot:true},
+    {ico:"🎞️", nama:"Alight Motion Pro", desc:"Editing animasi & motion graphic tanpa watermark, fitur pro lengkap.", harga:"Chat"},
+    {ico:"🎨", nama:"Canva Pro",  desc:"Akses jutaan template, background remover, brand kit, dan aset premium.", harga:"Chat"},
+    {ico:"🎵", nama:"Spotify Premium", desc:"Musik tanpa iklan, bisa download, kualitas audio tinggi.", harga:"Chat"},
+    {ico:"🧩", nama:"Template CapCut Pack", desc:"Kumpulan template editing buatan tim NX — tinggal pakai, auto estetik.", harga:"Chat", tag:"Baru"},
+    {ico:"✂️", nama:"Jasa Edit Video", desc:"Kirim bahan, diedit profesional sama tim NX. Hasil rapi & cepat.", harga:"Chat"}
+  ];
+  // ===========================
+
+  function waLink(txt){ return "https://wa.me/"+WA+"?text="+encodeURIComponent(txt); }
+
+  var grid = document.getElementById("grid");
+  PRODUK.forEach(function(p){
+    var chat = !p.harga || p.harga.toLowerCase() === "chat";
+    var hargaTxt = chat ? "💬 Chat untuk harga" : p.harga;
+    var barisHarga = chat ? "" : "\n• Harga: "+p.harga;
+    var pesan = "Halo admin "+TOKO+", saya mau order:\n\n• Produk: "+p.nama+barisHarga+"\n\nMasih ready? Boleh minta harganya?";
+    var card = document.createElement("div");
+    card.className = "card" + (p.hot ? " hot" : "");
+    card.innerHTML =
+      (p.tag ? '<span class="tag">'+p.tag+'</span>' : '') +
+      '<div class="ico">'+p.ico+'</div>' +
+      '<h3>'+p.nama+'</h3>' +
+      '<div class="desc">'+p.desc+'</div>' +
+      '<div class="price">'+(chat ? '<b class="chat">'+hargaTxt+'</b>' : '<b>'+hargaTxt+'</b>'+(p.coret?'<s>'+p.coret+'</s>':''))+'</div>' +
+      '<a class="order" target="_blank" rel="noopener" href="'+waLink(pesan)+'">Order via WhatsApp</a>';
+    grid.appendChild(card);
+  });
+
+  document.getElementById("waMain").href = waLink("Halo admin "+TOKO+", saya mau nanya produk premium.");
+  document.getElementById("yr").textContent = new Date().getFullYear();
+</script>
